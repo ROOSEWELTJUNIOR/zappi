@@ -1,0 +1,355 @@
+Você é um desenvolvedor sênior especializado em React, TypeScript e arquitetura SaaS.
+
+Seu objetivo é criar apenas a BASE de um SaaS de automação para WhatsApp inspirado no Leona Flow, com arquitetura limpa, escalável e profissional.
+
+IMPORTANTE:
+
+NÃO implemente ainda:
+- Integração com WhatsApp
+- Fluxos
+- IA
+- Chat
+- CRM
+- Campanhas
+- Webhooks
+
+Quero apenas a estrutura inicial extremamente organizada.
+
+========================
+
+STACK
+
+Frontend
+
+- React
+- Vite
+- TypeScript
+- React Router
+- Tailwind CSS
+- shadcn/ui
+- Lucide Icons
+- React Query
+- React Hook Form
+- Zod
+
+Backend (apenas preparar estrutura)
+
+- NestJS
+- Prisma
+- PostgreSQL (Supabase)
+
+========================
+
+ESTILO
+
+Inspirado no Leona Flow.
+
+Tema escuro premium.
+
+Cores
+
+Background:
+#09090B
+
+Sidebar:
+#111827
+
+Cards:
+#18181B
+
+Primária:
+#7C3AED
+
+Hover:
+#8B5CF6
+
+Texto:
+#FFFFFF
+
+Texto secundário:
+#A1A1AA
+
+Bordas:
+#27272A
+
+Design moderno.
+
+Muito clean.
+
+Cantos arredondados.
+
+Sombras suaves.
+
+Totalmente responsivo.
+
+========================
+
+ESTRUTURA
+
+Criar as páginas:
+
+/login
+
+/register
+
+/dashboard
+
+/chats
+
+/flows
+
+/contacts
+
+/connections
+
+/products
+
+/orders
+
+/settings
+
+Cada página deve possuir layout pronto.
+
+Mesmo que ainda esteja vazia.
+
+========================
+
+LAYOUT
+
+Criar:
+
+Header superior
+
+Sidebar fixa
+
+Área central
+
+Cards
+
+Breadcrumb
+
+Sistema de navegação
+
+Menu recolhível
+
+Layout mobile
+
+========================
+
+SIDEBAR
+
+Dashboard
+
+Chats
+
+Fluxos
+
+Contatos
+
+Conexões
+
+Produtos
+
+Pedidos
+
+Configurações
+
+No rodapé:
+
+Perfil
+
+Plano
+
+Logout
+
+========================
+
+HEADER
+
+Logo
+
+Nome da empresa
+
+Avatar
+
+Notificações
+
+Trocar empresa
+
+========================
+
+DASHBOARD
+
+Criar cards fictícios:
+
+Leads
+
+Conversas
+
+Fluxos
+
+Pedidos
+
+Receita
+
+WhatsApps conectados
+
+Criar gráficos fake usando dados mockados.
+
+========================
+
+ARQUITETURA
+
+Organizar pastas:
+
+src
+
+components
+
+layouts
+
+pages
+
+hooks
+
+services
+
+contexts
+
+types
+
+utils
+
+constants
+
+styles
+
+assets
+
+========================
+
+COMPONENTES
+
+Sidebar
+
+Header
+
+Card
+
+Button
+
+Input
+
+Modal
+
+Table
+
+Badge
+
+Avatar
+
+Breadcrumb
+
+========================
+
+ROTEAMENTO
+
+React Router configurado.
+
+Lazy Loading.
+
+========================
+
+AUTENTICAÇÃO
+
+Criar Auth Context.
+
+Criar Protected Routes.
+
+Usuário fake.
+
+Não conectar backend ainda.
+
+========================
+
+EMPRESA
+
+Criar contexto Company.
+
+Toda estrutura preparada para multiempresa.
+
+========================
+
+TIPAGEM
+
+Criar interfaces:
+
+User
+
+Company
+
+Contact
+
+Connection
+
+Flow
+
+Product
+
+Order
+
+========================
+
+RESPONSIVIDADE
+
+Desktop
+
+Tablet
+
+Celular
+
+========================
+
+QUALIDADE
+
+Código limpo.
+
+Componentes reutilizáveis.
+
+Sem código duplicado.
+
+Sem comentários desnecessários.
+
+Usar boas práticas.
+
+========================
+
+NÃO IMPLEMENTAR
+
+WhatsApp
+
+Evolution API
+
+IA
+
+OpenAI
+
+Chat em tempo real
+
+Supabase
+
+Banco
+
+Prisma
+
+NestJS
+
+Apenas preparar a estrutura.
+
+========================
+
+OBJETIVO
+
+Gerar a base de um SaaS profissional, organizado e escalável, pronto para receber funcionalidades futuramente.
+
+O projeto deve abrir sem erros, estar totalmente funcional visualmente e servir como fundação para as próximas etapas.
