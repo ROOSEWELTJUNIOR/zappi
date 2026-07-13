@@ -308,7 +308,7 @@ export default function Settings() {
                     <label className="text-sm font-medium leading-none">URL da API</label>
                     <Input
                       readOnly
-                      value={evolutionConfig.baseUrl || '(VITE_EVOLUTION_URL não definida)'}
+                      value={evolutionConfig.publicUrl || '(VITE_EVOLUTION_URL não definida)'}
                       className="bg-background/50 font-mono text-sm"
                     />
                     <p className="text-xs text-muted-foreground">

@@ -72,10 +72,29 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    proxy: {
+      // Proxy all Evolution API calls through the dev server to avoid CORS.
+      // The browser calls /evolution-proxy/... → Vite forwards to the real API
+      // server-side, where there are no browser CORS restrictions.
+      '/evolution-proxy': {
+        target: process.env.VITE_EVOLUTION_URL ?? 'http://localhost',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (p) => p.replace(/^\/evolution-proxy/, ''),
+      },
+    },
   },
   preview: {
     port,
     host: '0.0.0.0',
     allowedHosts: true,
+    proxy: {
+      '/evolution-proxy': {
+        target: process.env.VITE_EVOLUTION_URL ?? 'http://localhost',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (p) => p.replace(/^\/evolution-proxy/, ''),
+      },
+    },
   },
 });
