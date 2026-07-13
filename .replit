@@ -18,3 +18,9 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+VITE_EVOLUTION_API_KEY = "aliciaromelia"
+VITE_EVOLUTION_URL = "https://evolution-api-production-292c.up.railway.app"

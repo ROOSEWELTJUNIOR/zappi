@@ -1,0 +1,667 @@
+Você é um desenvolvedor Full Stack Senior.
+
+
+
+Vamos continuar exatamente o projeto existente.
+
+
+
+IMPORTANTE
+
+
+
+NÃO alterar Dashboard.
+
+
+
+NÃO alterar Login.
+
+
+
+NÃO alterar Sidebar.
+
+
+
+NÃO alterar Header.
+
+
+
+NÃO alterar tema.
+
+
+
+NÃO remover componentes existentes.
+
+
+
+Apenas substituir os dados MOCK da página Conexões por integração REAL com Evolution API.
+
+
+
+======================================================
+
+
+
+OBJETIVO
+
+
+
+Integrar o módulo "Conexões" com uma Evolution API hospedada no Railway.
+
+
+
+A Evolution API já está funcionando.
+
+
+
+Backend:
+
+
+
+Railway
+
+
+
+Banco:
+
+
+
+PostgreSQL
+
+
+
+Cache:
+
+
+
+Redis
+
+
+
+A integração deve ser preparada para produção.
+
+
+
+======================================================
+
+
+
+ARQUITETURA
+
+
+
+Criar um serviço único
+
+
+
+services/evolution.service.ts
+
+
+
+Toda comunicação com a Evolution deve acontecer apenas nele.
+
+
+
+Nunca chamar fetch diretamente nos componentes.
+
+
+
+======================================================
+
+
+
+CRIAR ARQUIVO
+
+
+
+src/config/evolution.ts
+
+
+
+Utilizar variáveis de ambiente
+
+
+
+VITE_EVOLUTION_URL
+
+
+
+VITE_EVOLUTION_API_KEY
+
+
+
+======================================================
+
+
+
+EXEMPLO
+
+
+
+VITE_EVOLUTION_URL=https://URL-DA-EVOLUTION.up.railway.app
+
+
+
+VITE_EVOLUTION_API_KEY=MINHA_API_KEY
+
+
+
+======================================================
+
+
+
+CRIAR CLIENTE
+
+
+
+Utilizar Axios.
+
+
+
+Criar instância única.
+
+
+
+Timeout
+
+
+
+Interceptors
+
+
+
+Tratamento de erros
+
+
+
+======================================================
+
+
+
+IMPLEMENTAR MÉTODOS
+
+
+
+createInstance(name)
+
+
+
+deleteInstance(name)
+
+
+
+fetchQRCode(name)
+
+
+
+connectInstance(name)
+
+
+
+logoutInstance(name)
+
+
+
+restartInstance(name)
+
+
+
+getConnectionState(name)
+
+
+
+listInstances()
+
+
+
+======================================================
+
+
+
+NOVA CONEXÃO
+
+
+
+Quando clicar
+
+
+
+Nova Conexão
+
+
+
+↓
+
+
+
+Criar instância na Evolution
+
+
+
+↓
+
+
+
+Salvar informações no localStorage (temporariamente)
+
+
+
+↓
+
+
+
+Atualizar tabela
+
+
+
+======================================================
+
+
+
+QR CODE
+
+
+
+Ao clicar
+
+
+
+Conectar
+
+
+
+↓
+
+
+
+Buscar QR Code REAL
+
+
+
+↓
+
+
+
+Exibir imagem retornada pela Evolution
+
+
+
+↓
+
+
+
+Atualizar automaticamente a cada poucos segundos enquanto o status for QR_CODE
+
+
+
+======================================================
+
+
+
+STATUS
+
+
+
+Consultar automaticamente
+
+
+
+OFFLINE
+
+
+
+CONNECTING
+
+
+
+QRCODE
+
+
+
+OPEN
+
+
+
+CLOSED
+
+
+
+======================================================
+
+
+
+ATUALIZAÇÃO AUTOMÁTICA
+
+
+
+Enquanto existir conexão aberta
+
+
+
+Atualizar status periodicamente.
+
+
+
+Quando conectar
+
+
+
+Fechar modal automaticamente.
+
+
+
+Mostrar Toast
+
+
+
+WhatsApp conectado com sucesso.
+
+
+
+======================================================
+
+
+
+DETALHES
+
+
+
+Mostrar
+
+
+
+Nome
+
+
+
+Telefone
+
+
+
+Foto do perfil
+
+
+
+Nome do WhatsApp
+
+
+
+Status
+
+
+
+Tempo online
+
+
+
+======================================================
+
+
+
+AÇÕES
+
+
+
+Reconectar
+
+
+
+Desconectar
+
+
+
+Excluir Instância
+
+
+
+Atualizar QR Code
+
+
+
+======================================================
+
+
+
+TRATAMENTO DE ERROS
+
+
+
+Instância já existe
+
+
+
+API Offline
+
+
+
+API Key inválida
+
+
+
+QR expirado
+
+
+
+Timeout
+
+
+
+Instância não encontrada
+
+
+
+Mostrar mensagens amigáveis.
+
+
+
+======================================================
+
+
+
+CONFIGURAÇÃO
+
+
+
+Criar tela
+
+
+
+Configurações
+
+
+
+→ Evolution API
+
+
+
+Mostrar
+
+
+
+URL
+
+
+
+Status
+
+
+
+API Key (mascarada)
+
+
+
+Botão
+
+
+
+Testar conexão
+
+
+
+======================================================
+
+
+
+TESTE DE CONEXÃO
+
+
+
+Ao clicar
+
+
+
+Testar
+
+
+
+↓
+
+
+
+Realizar requisição para Evolution
+
+
+
+↓
+
+
+
+Mostrar
+
+
+
+Conectado
+
+
+
+ou
+
+
+
+Falha na conexão
+
+
+
+======================================================
+
+
+
+RESPONSIVIDADE
+
+
+
+Desktop
+
+
+
+Tablet
+
+
+
+Celular
+
+
+
+======================================================
+
+
+
+QUALIDADE
+
+
+
+Utilizar TypeScript.
+
+
+
+Código limpo.
+
+
+
+Sem duplicação.
+
+
+
+Separar componentes.
+
+
+
+Separar serviços.
+
+
+
+Separar interfaces.
+
+
+
+======================================================
+
+
+
+IMPORTANTE
+
+
+
+Nunca deixar URL ou API Key fixa no código.
+
+
+
+Tudo deve utilizar:
+
+
+
+VITE_EVOLUTION_URL
+
+
+
+VITE_EVOLUTION_API_KEY
+
+
+
+======================================================
+
+
+
+Ao finalizar:
+
+
+
+- remover completamente os mocks da página Conexões;
+
+- deixar toda a integração preparada para produção;
+
+- manter o restante do sistema exatamente como está.
+
+
+
+
+
+minha variaveis:SERVER_TYPE="http"
+
+SERVER_PORT="8080"
+
+AUTHENTICATION_ENABLED="true"
+
+AUTHENTICATION_API_KEY="aliciaromelia"
+
+DATABASE_ENABLED="true"
+
+DATABASE_PROVIDER="postgresql"
+
+DATABASE_CONNECTION_URI="${{Postgres.DATABASE_URL}}"
+
+CACHE_REDIS_ENABLED="true"
+
+CACHE_REDIS_URI="${{Redis.REDIS_URL}}"
+
+CONFIG_SESSION_PHONE_CLIENT="Chrome"
+
+CONFIG_SESSION_PHONE_VERSION="2.3000.1025062854"
+
+LOG_LEVEL="ERROR"
+
+
+
+
+
+URL PARA CHAMAR API:evolution-api-production-292c.up.railway.app
