@@ -15,10 +15,14 @@ interface CreateCompanyData {
 
 interface CompanyContextType {
   company: Company | null;
+  /** Alias for `company` — used by Header and other existing components */
+  currentCompany: Company | null;
   companies: Company[];
   hasCompany: boolean;
   createCompany: (data: CreateCompanyData) => Promise<Company>;
   switchCompany: (id: string) => void;
+  /** Alias for switchCompany — used by Header (accepts a Company object) */
+  setCurrentCompany: (company: Company) => void;
 }
 
 const mockCompanies: Company[] = [
@@ -48,26 +52,45 @@ const mockCompanies: Company[] = [
   },
 ];
 
+/** Synchronously restore companies list from localStorage */
+function restoreCompanies(): Company[] {
+  try {
+    const stored = localStorage.getItem(STORAGE_COMPANIES_KEY);
+    if (stored) return JSON.parse(stored) as Company[];
+  } catch { /* ignore */ }
+  return mockCompanies;
+}
+
+/** Synchronously restore active company from localStorage */
+function restoreCurrentCompany(companies: Company[]): Company | null {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored) as Company;
+  } catch { /* ignore */ }
+  return null;
+}
+
 const CompanyContext = createContext<CompanyContextType | undefined>(undefined);
 
 export function CompanyProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [company, setCompany] = useState<Company | null>(null);
 
+  // Synchronous init — no useEffect gap, no null flash
+  const [companies, setCompanies] = useState<Company[]>(restoreCompanies);
+  const [company, setCompany] = useState<Company | null>(() =>
+    restoreCurrentCompany(restoreCompanies()),
+  );
+
+  // Fallback: if no stored company but user has a companyId, resolve from list
   useEffect(() => {
-    const storedCompanies = localStorage.getItem(STORAGE_COMPANIES_KEY);
-    const parsed: Company[] = storedCompanies ? JSON.parse(storedCompanies) : mockCompanies;
-    setCompanies(parsed);
-
-    const storedCurrent = localStorage.getItem(STORAGE_KEY);
-    if (storedCurrent) {
-      setCompany(JSON.parse(storedCurrent) as Company);
-    } else if (user?.companyId) {
-      const found = parsed.find((c) => c.id === user.companyId) ?? null;
-      setCompany(found);
+    if (!company && user?.companyId) {
+      const found = companies.find((c) => c.id === user.companyId) ?? null;
+      if (found) {
+        setCompany(found);
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(found));
+      }
     }
-  }, [user?.companyId]);
+  }, [user?.companyId, company, companies]);
 
   const createCompany = async (data: CreateCompanyData): Promise<Company> => {
     await new Promise((r) => setTimeout(r, 900));
@@ -100,9 +123,22 @@ export function CompanyProvider({ children }: { children: ReactNode }) {
     if (found) localStorage.setItem(STORAGE_KEY, JSON.stringify(found));
   };
 
+  const setCurrentCompany = (c: Company) => {
+    setCompany(c);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(c));
+  };
+
   return (
     <CompanyContext.Provider
-      value={{ company, companies, hasCompany: !!company, createCompany, switchCompany }}
+      value={{
+        company,
+        currentCompany: company,
+        companies,
+        hasCompany: !!company,
+        createCompany,
+        switchCompany,
+        setCurrentCompany,
+      }}
     >
       {children}
     </CompanyContext.Provider>

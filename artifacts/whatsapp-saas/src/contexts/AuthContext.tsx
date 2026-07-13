@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, ReactNode } from 'react';
 import { User } from '@/types';
 
 const STORAGE_KEYS = {
@@ -35,29 +35,26 @@ const FAKE_CREDENTIALS = {
   password: '12345678',
 };
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+/** Synchronously restore session from localStorage — no async gap */
+function restoreUser(): User | null {
+  try {
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    const stored = localStorage.getItem(STORAGE_KEYS.USER);
+    if (token && stored) return JSON.parse(stored) as User;
+  } catch { /* corrupted storage — ignore */ }
+  return null;
+}
 
 function generateToken(): string {
   return 'fake_token_' + Math.random().toString(36).substring(2);
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-  useEffect(() => {
-    const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
-    const stored = localStorage.getItem(STORAGE_KEYS.USER);
-    if (token && stored) {
-      try {
-        setUser(JSON.parse(stored) as User);
-      } catch {
-        localStorage.removeItem(STORAGE_KEYS.TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.USER);
-      }
-    }
-    setIsLoading(false);
-  }, []);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  // Synchronous init: no useEffect needed, no loading flash
+  const [user, setUser] = useState<User | null>(restoreUser);
+  const isLoading = false;
 
   const login = async (data: LoginData): Promise<boolean> => {
     await new Promise((r) => setTimeout(r, 800));
