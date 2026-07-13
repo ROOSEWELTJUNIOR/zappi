@@ -22,7 +22,3 @@ export const evolutionConfig = {
 export function isEvolutionConfigured(): boolean {
   return Boolean(evolutionConfig.publicUrl && evolutionConfig.apiKey);
 }
-
-export function isEvolutionConfigured(): boolean {
-  return Boolean(evolutionConfig.baseUrl && evolutionConfig.apiKey);
-}
