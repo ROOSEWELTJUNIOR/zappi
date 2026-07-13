@@ -5,11 +5,13 @@ import { Route, Switch, Router as WouterRouter, Redirect } from 'wouter';
 import { Suspense, lazy } from 'react';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { CompanyProvider } from '@/contexts/CompanyContext';
+import { CompanyProvider, useCompany } from '@/contexts/CompanyContext';
 import { AppLayout } from '@/layouts/AppLayout';
 
 import Login from '@/pages/Login';
 import Register from '@/pages/Register';
+import ForgotPassword from '@/pages/ForgotPassword';
+import CreateCompany from '@/pages/CreateCompany';
 import NotFound from '@/pages/not-found';
 
 const Dashboard = lazy(() => import('@/pages/Dashboard'));
@@ -23,12 +25,23 @@ const Settings = lazy(() => import('@/pages/Settings'));
 
 const queryClient = new QueryClient();
 
+const PageLoader = () => (
+  <div className="flex h-full items-center justify-center text-muted-foreground">
+    Carregando...
+  </div>
+);
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading } = useAuth();
+  const { hasCompany } = useCompany();
+
+  if (isLoading) return <PageLoader />;
   if (!isAuthenticated) return <Redirect to="/login" />;
+  if (!hasCompany) return <Redirect to="/create-company" />;
+
   return (
     <AppLayout>
-      <Suspense fallback={<div className="flex h-full items-center justify-center text-muted-foreground">Carregando...</div>}>
+      <Suspense fallback={<PageLoader />}>
         <Component />
       </Suspense>
     </AppLayout>
@@ -36,16 +49,36 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function Router() {
-  const { isAuthenticated } = useAuth();
-  
+  const { isAuthenticated, isLoading } = useAuth();
+  const { hasCompany } = useCompany();
+
+  if (isLoading) return <PageLoader />;
+
   return (
     <Switch>
       <Route path="/">
-        {isAuthenticated ? <Redirect to="/dashboard" /> : <Redirect to="/login" />}
+        {isAuthenticated && hasCompany
+          ? <Redirect to="/dashboard" />
+          : isAuthenticated
+          ? <Redirect to="/create-company" />
+          : <Redirect to="/login" />}
       </Route>
-      <Route path="/login" component={Login} />
-      <Route path="/register" component={Register} />
-      
+
+      {/* Public routes */}
+      <Route path="/login">
+        {isAuthenticated ? <Redirect to={hasCompany ? '/dashboard' : '/create-company'} /> : <Login />}
+      </Route>
+      <Route path="/register">
+        {isAuthenticated ? <Redirect to={hasCompany ? '/dashboard' : '/create-company'} /> : <Register />}
+      </Route>
+      <Route path="/forgot-password" component={ForgotPassword} />
+
+      {/* Onboarding — requires auth, no company yet */}
+      <Route path="/create-company">
+        {!isAuthenticated ? <Redirect to="/login" /> : <CreateCompany />}
+      </Route>
+
+      {/* Protected routes */}
       <Route path="/dashboard"><ProtectedRoute component={Dashboard} /></Route>
       <Route path="/chats"><ProtectedRoute component={Chats} /></Route>
       <Route path="/flows"><ProtectedRoute component={Flows} /></Route>
@@ -54,7 +87,7 @@ function Router() {
       <Route path="/products"><ProtectedRoute component={Products} /></Route>
       <Route path="/orders"><ProtectedRoute component={Orders} /></Route>
       <Route path="/settings"><ProtectedRoute component={Settings} /></Route>
-      
+
       <Route component={NotFound} />
     </Switch>
   );

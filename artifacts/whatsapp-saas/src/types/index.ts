@@ -3,6 +3,7 @@ export interface User {
   name: string;
   email: string;
   avatar: string | null;
+  companyId: string | null;
   role: 'admin' | 'manager' | 'agent';
   plan: 'free' | 'starter' | 'pro' | 'enterprise';
 }
@@ -12,8 +13,12 @@ export interface Company {
   name: string;
   logo: string | null;
   plan: string;
+  segment: string;
+  employeesCount: string;
+  phone: string;
   usersCount: number;
   whatsappsCount: number;
+  createdAt: string;
 }
 
 export interface Contact {
