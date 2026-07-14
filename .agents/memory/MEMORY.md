@@ -1,0 +1,2 @@
+- [Evolution API v2 chat endpoints](evolution-api-v2-chat.md) — POST (not GET) for findChats; @lid JIDs are valid; ISO updatedAt in chat response.
+- [Evolution API v2 adapter](evolution-api-v2-adapter.md) — flat shape: item.name, item.connectionStatus (string), item.number; both confirmed in v2.3.7.

@@ -318,3 +318,9 @@ export async function testConnection(): Promise<{ ok: boolean; message: string }
     return { ok: false, message: 'Falha ao conectar com a Evolution API.' };
   }
 }
+
+/**
+ * Expose the singleton axios client for other service modules (chat, message).
+ * UI components must NEVER call this — use service functions instead.
+ */
+export { getClient as getEvolutionClient };

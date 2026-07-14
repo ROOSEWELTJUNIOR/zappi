@@ -1,0 +1,409 @@
+Você é um Engenheiro Full Stack Senior especialista em React, TypeScript, UX SaaS e Evolution API.
+
+Vamos continuar exatamente o projeto existente.
+
+IMPORTANTE
+
+NÃO alterar:
+
+Dashboard
+
+Sidebar
+
+Header
+
+Login
+
+Cadastro
+
+Conexões
+
+Configurações
+
+Tema
+
+Rotas existentes
+
+Layout
+
+Todo o restante do sistema deve continuar exatamente igual.
+
+==========================================================
+
+OBJETIVO
+
+Criar um módulo profissional de Conversas (Chats) semelhante ao Leona, Kommo e BotConversa.
+
+A Evolution API já está integrada e funcionando.
+
+Utilizar apenas a integração existente.
+
+Nunca criar nova conexão.
+
+Nunca duplicar serviços.
+
+==========================================================
+
+ROTA
+
+/chats
+
+==========================================================
+
+LAYOUT
+
+Dividir a tela em três colunas.
+
+----------------------------------------------------------
+
+COLUNA 1
+
+Lista de Conversas
+
+Largura fixa
+
+Pesquisar contato
+
+Filtro
+
+Todas
+
+Não lidas
+
+Abertas
+
+Finalizadas
+
+Favoritas
+
+Cada conversa deve mostrar
+
+Foto
+
+Nome
+
+Última mensagem
+
+Horário
+
+Quantidade de mensagens não lidas
+
+Indicador online
+
+==========================================================
+
+COLUNA 2
+
+Janela da conversa
+
+Mostrar
+
+Nome
+
+Foto
+
+Status
+
+Telefone
+
+Botão ligar (placeholder)
+
+Botão informações
+
+Lista completa de mensagens
+
+Mensagens enviadas
+
+Mensagens recebidas
+
+Horário
+
+Status da mensagem
+
+Enviando
+
+Enviada
+
+Entregue
+
+Lida
+
+Rolagem automática
+
+Carregar mensagens antigas ao subir.
+
+==========================================================
+
+COLUNA 3
+
+Informações do contato
+
+Foto
+
+Nome
+
+Telefone
+
+Push Name
+
+Tags
+
+Observações
+
+Origem
+
+Última atividade
+
+Instância
+
+Data da primeira conversa
+
+Botão editar
+
+==========================================================
+
+ENVIO DE MENSAGEM
+
+Campo
+
+Digite uma mensagem...
+
+Enviar com Enter
+
+Botão enviar
+
+Emoji (placeholder)
+
+Anexo (placeholder)
+
+Áudio (placeholder)
+
+==========================================================
+
+INTEGRAÇÃO
+
+Criar
+
+chat.service.ts
+
+Nunca utilizar fetch diretamente.
+
+Utilizar Axios.
+
+Utilizar o EvolutionService existente.
+
+==========================================================
+
+IMPLEMENTAR
+
+Listar conversas
+
+Buscar mensagens
+
+Enviar mensagem
+
+Atualizar mensagens
+
+Atualizar conversa
+
+Buscar perfil
+
+==========================================================
+
+TEMPO REAL
+
+Implementar atualização automática.
+
+Enquanto o chat estiver aberto
+
+Buscar novas mensagens automaticamente a cada poucos segundos.
+
+Nunca duplicar mensagens.
+
+==========================================================
+
+MENSAGENS
+
+Suportar
+
+Texto
+
+Imagem
+
+Áudio
+
+Documento
+
+Vídeo
+
+Sticker
+
+Localização
+
+Contato
+
+Mesmo que inicialmente apenas exiba placeholders para mídias.
+
+==========================================================
+
+STATUS
+
+Mostrar
+
+Digitando...
+
+Online
+
+Offline
+
+Última atividade
+
+==========================================================
+
+BUSCA
+
+Pesquisar conversa por
+
+Nome
+
+Telefone
+
+==========================================================
+
+EMPTY STATE
+
+Quando nenhuma conversa estiver selecionada
+
+Mostrar ilustração
+
+Texto
+
+Selecione uma conversa para começar.
+
+==========================================================
+
+RESPONSIVIDADE
+
+Desktop
+
+Tablet
+
+Celular
+
+No celular
+
+Lista ocupa tela inteira.
+
+Ao abrir conversa
+
+Mostrar apenas a conversa.
+
+Botão voltar.
+
+==========================================================
+
+TIPAGEM
+
+Conversation
+
+Message
+
+Attachment
+
+ChatUser
+
+ChatStatus
+
+==========================================================
+
+HOOKS
+
+useChats()
+
+useMessages()
+
+==========================================================
+
+SERVIÇOS
+
+chat.service.ts
+
+message.service.ts
+
+==========================================================
+
+PERFORMANCE
+
+Lazy loading
+
+Virtualização da lista de mensagens quando necessário
+
+Evitar renders desnecessários
+
+==========================================================
+
+UX
+
+Loading
+
+Skeleton
+
+Toast
+
+Scroll automático
+
+Scroll inteligente
+
+Hover
+
+Transições suaves
+
+==========================================================
+
+IMPORTANTE
+
+Toda comunicação deve utilizar a Evolution API já integrada.
+
+Nunca criar uma nova integração.
+
+Nunca alterar o módulo Conexões.
+
+Apenas consumir a conexão existente.
+
+==========================================================
+
+QUALIDADE
+
+Código limpo.
+
+Componentes reutilizáveis.
+
+Sem duplicação.
+
+Sem any.
+
+TypeScript forte.
+
+Arquitetura escalável.
+
+==========================================================
+
+AO FINAL
+
+Garantir que:
+
+✓ lista conversas
+
+✓ abre conversa
+
+✓ envia mensagens
+
+✓ recebe novas mensagens automaticamente
+
+✓ atualiza lista em tempo real
+
+✓ funciona em desktop e mobile
+
+✓ mantém o design premium do sistema
+
+Sem quebrar nenhuma funcionalidade existente.
