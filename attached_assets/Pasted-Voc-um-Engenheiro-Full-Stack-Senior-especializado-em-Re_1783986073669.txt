@@ -1,0 +1,441 @@
+Você é um Engenheiro Full Stack Senior especializado em React, TypeScript, Node.js e Evolution API.
+
+MISSÃO
+
+Resolver COMPLETAMENTE o módulo de Conexões do projeto existente.
+
+Não quero redesign.
+
+Não quero novos componentes desnecessários.
+
+Quero fazer a conexão REAL com a Evolution API funcionar de forma estável.
+
+========================================================
+
+IMPORTANTE
+
+NÃO alterar:
+
+Dashboard
+
+Sidebar
+
+Header
+
+Login
+
+Cadastro
+
+Tema
+
+Layout
+
+Responsividade
+
+Rotas existentes
+
+Tudo que já funciona deve permanecer exatamente igual.
+
+========================================================
+
+OBJETIVO
+
+O usuário deve conseguir:
+
+1 Criar uma instância
+
+2 Buscar QR Code
+
+3 Atualizar QR automaticamente
+
+4 Conectar o WhatsApp
+
+5 Detectar quando ficou ONLINE
+
+6 Mostrar telefone conectado
+
+7 Mostrar foto de perfil
+
+8 Mostrar nome do WhatsApp
+
+9 Desconectar
+
+10 Reconectar
+
+11 Excluir instância
+
+Tudo funcionando.
+
+========================================================
+
+CONFIGURAÇÃO
+
+A Evolution API já está hospedada no Railway.
+
+Banco PostgreSQL configurado.
+
+Redis configurado.
+
+API KEY configurada.
+
+Nunca utilizar dados mockados.
+
+Nunca utilizar localStorage para conexões.
+
+Toda informação deve vir da Evolution API.
+
+========================================================
+
+VARIÁVEIS DE AMBIENTE
+
+Criar arquivo de configuração.
+
+Utilizar apenas:
+
+VITE_EVOLUTION_URL
+
+VITE_EVOLUTION_API_KEY
+
+Nunca deixar URL fixa.
+
+Nunca deixar API KEY fixa.
+
+========================================================
+
+ARQUITETURA
+
+Criar:
+
+src/services/evolution.service.ts
+
+Toda comunicação HTTP deve acontecer somente neste arquivo.
+
+Nenhum componente pode chamar fetch diretamente.
+
+Utilizar Axios.
+
+Criar interceptors.
+
+Timeout.
+
+Tratamento de erro.
+
+========================================================
+
+IMPLEMENTAR
+
+listInstances()
+
+createInstance()
+
+deleteInstance()
+
+logoutInstance()
+
+restartInstance()
+
+fetchQRCode()
+
+connectionState()
+
+fetchProfile()
+
+========================================================
+
+CRIAR TIPAGEM
+
+Connection
+
+Instance
+
+QRCode
+
+Profile
+
+ConnectionState
+
+========================================================
+
+CRIAR HOOK
+
+useEvolution()
+
+Responsável por
+
+loading
+
+error
+
+refetch
+
+polling
+
+========================================================
+
+CRIAR POLLING
+
+Enquanto status for
+
+connecting
+
+ou
+
+qrcode
+
+Consultar automaticamente a Evolution API a cada poucos segundos.
+
+Assim que o status mudar para OPEN
+
+Parar polling automaticamente.
+
+Fechar modal.
+
+Atualizar tabela.
+
+Mostrar Toast.
+
+========================================================
+
+CRIAR INSTÂNCIA
+
+Ao clicar
+
+Nova Conexão
+
+↓
+
+Criar instância na Evolution.
+
+↓
+
+Atualizar lista.
+
+========================================================
+
+QR CODE
+
+Ao clicar
+
+Conectar
+
+↓
+
+Buscar QR Code real.
+
+↓
+
+Exibir imagem retornada pela Evolution.
+
+↓
+
+Atualizar automaticamente.
+
+Nunca utilizar QR fake.
+
+========================================================
+
+STATUS
+
+Mapear corretamente
+
+OPEN
+
+CONNECTED
+
+ONLINE
+
+QRCODE
+
+CONNECTING
+
+CLOSED
+
+DISCONNECTED
+
+ERROR
+
+Cada um com Badge apropriada.
+
+========================================================
+
+PERFIL
+
+Quando conectar
+
+Buscar automaticamente
+
+Nome
+
+Telefone
+
+Foto
+
+Push Name
+
+========================================================
+
+TABELA
+
+Mostrar
+
+Nome
+
+Telefone
+
+Status
+
+Última atualização
+
+Mensagens
+
+Botões
+
+Conectar
+
+Reconectar
+
+Desconectar
+
+Excluir
+
+========================================================
+
+TRATAMENTO DE ERROS
+
+Instância existente
+
+Instância inexistente
+
+QR expirado
+
+Timeout
+
+Evolution Offline
+
+API KEY inválida
+
+Erro de rede
+
+Mostrar mensagens amigáveis.
+
+========================================================
+
+LOGS
+
+Adicionar logs apenas em desenvolvimento.
+
+Mostrar
+
+Request
+
+Response
+
+Status HTTP
+
+Mensagem de erro
+
+Nunca mostrar API KEY.
+
+========================================================
+
+COMPATIBILIDADE
+
+Se a Evolution API retornar respostas diferentes entre versões,
+
+criar uma camada Adapter para normalizar os dados.
+
+O restante do sistema nunca deve depender do formato bruto da API.
+
+========================================================
+
+VALIDAÇÃO
+
+Ao iniciar o sistema
+
+Testar automaticamente a conexão com a Evolution.
+
+Se estiver offline
+
+Mostrar aviso no Dashboard.
+
+========================================================
+
+CONFIGURAÇÕES
+
+Criar seção
+
+Configurações
+
+↓
+
+Evolution API
+
+Mostrar
+
+URL
+
+Status
+
+Versão
+
+Botão
+
+Testar conexão
+
+Botão
+
+Atualizar status
+
+========================================================
+
+QUALIDADE
+
+Remover qualquer código mock.
+
+Remover código duplicado.
+
+Centralizar toda integração em um único serviço.
+
+Código limpo.
+
+TypeScript forte.
+
+Sem any.
+
+========================================================
+
+AO FINAL
+
+Revisar todo o módulo.
+
+Corrigir imports quebrados.
+
+Corrigir erros de compilação.
+
+Corrigir erros de TypeScript.
+
+Garantir que o projeto execute sem erros.
+
+Garantir que:
+
+✓ cria instância
+
+✓ busca QR Code
+
+✓ conecta WhatsApp
+
+✓ detecta OPEN
+
+✓ atualiza automaticamente
+
+✓ mostra perfil
+
+✓ reconecta
+
+✓ desconecta
+
+✓ exclui instância
+
+Sem alterar nenhuma outra parte do projeto.
+
+Se encontrar diferenças entre versões da Evolution API, adaptar automaticamente as requisições para a versão detectada, sem quebrar o restante do sistema.

@@ -1,18 +1,17 @@
 import { useState } from 'react';
 import {
   Smartphone, QrCode, RefreshCw, PowerOff, Trash2,
-  Wifi, WifiOff, Loader2, MoreVertical,
+  Wifi, WifiOff, Loader2, MoreVertical, AlertCircle,
 } from 'lucide-react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import {
+  Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription,
+} from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import type { Connection, ConnectionStatus } from '@/types/evolution';
 
@@ -24,43 +23,66 @@ interface ConnectionCardProps {
   onDelete: () => Promise<void>;
 }
 
+// ─── Status helpers ───────────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<ConnectionStatus, string> = {
+  OPEN:         'Conectado',
+  CONNECTING:   'Conectando…',
+  QRCODE:       'Aguardando QR',
+  CLOSED:       'Fechado',
+  DISCONNECTED: 'Desconectado',
+  ERROR:        'Erro',
+  OFFLINE:      'Offline',
+};
+
+const STATUS_VARIANT: Record<ConnectionStatus, 'success' | 'warning' | 'error' | 'secondary'> = {
+  OPEN:         'success',
+  CONNECTING:   'warning',
+  QRCODE:       'warning',
+  CLOSED:       'error',
+  DISCONNECTED: 'error',
+  ERROR:        'error',
+  OFFLINE:      'secondary',
+};
+
+const ICON_BG: Record<ConnectionStatus, string> = {
+  OPEN:         'bg-emerald-500/10 text-emerald-500',
+  CONNECTING:   'bg-amber-500/10 text-amber-500',
+  QRCODE:       'bg-amber-500/10 text-amber-500',
+  CLOSED:       'bg-red-500/10 text-red-500',
+  DISCONNECTED: 'bg-red-500/10 text-red-500',
+  ERROR:        'bg-red-500/10 text-red-500',
+  OFFLINE:      'bg-zinc-500/10 text-zinc-400',
+};
+
 function StatusBadge({ status }: { status: ConnectionStatus }) {
-  switch (status) {
-    case 'OPEN':
-      return <Badge variant="success" className="h-5">Conectado</Badge>;
-    case 'CONNECTING':
-      return <Badge variant="warning" className="h-5">Conectando…</Badge>;
-    case 'QRCODE':
-      return <Badge variant="warning" className="h-5">Aguardando QR Code</Badge>;
-    case 'CLOSED':
-      return <Badge variant="error" className="h-5">Fechado</Badge>;
-    default:
-      return <Badge variant="error" className="h-5">Offline</Badge>;
-  }
+  return (
+    <Badge variant={STATUS_VARIANT[status]} className="h-5">
+      {STATUS_LABEL[status]}
+    </Badge>
+  );
 }
 
 function StatusIcon({ status }: { status: ConnectionStatus }) {
   const cls = 'h-6 w-6';
-  if (status === 'OPEN')
-    return (
-      <Wifi
-        className={`${cls} text-emerald-500`}
-      />
-    );
-  if (status === 'CONNECTING')
-    return <Loader2 className={`${cls} text-amber-500 animate-spin`} />;
-  if (status === 'QRCODE')
-    return <QrCode className={`${cls} text-amber-500`} />;
-  return <WifiOff className={`${cls} text-red-500`} />;
+  switch (status) {
+    case 'OPEN':
+      return <Wifi className={`${cls} text-emerald-500`} />;
+    case 'CONNECTING':
+      return <Loader2 className={`${cls} text-amber-500 animate-spin`} />;
+    case 'QRCODE':
+      return <QrCode className={`${cls} text-amber-500`} />;
+    case 'ERROR':
+      return <AlertCircle className={`${cls} text-red-500`} />;
+    case 'CLOSED':
+    case 'DISCONNECTED':
+      return <WifiOff className={`${cls} text-red-500`} />;
+    default:
+      return <Smartphone className={`${cls} text-zinc-400`} />;
+  }
 }
 
-const iconBg: Record<ConnectionStatus, string> = {
-  OPEN: 'bg-emerald-500/10 text-emerald-500',
-  CONNECTING: 'bg-amber-500/10 text-amber-500',
-  QRCODE: 'bg-amber-500/10 text-amber-500',
-  CLOSED: 'bg-red-500/10 text-red-500',
-  OFFLINE: 'bg-red-500/10 text-red-500',
-};
+// ─── Card ─────────────────────────────────────────────────────────────────────
 
 export function ConnectionCard({
   connection,
@@ -69,30 +91,25 @@ export function ConnectionCard({
   onReconnect,
   onDelete,
 }: ConnectionCardProps) {
-  const { instanceName, displayName, status, phone, profilePicUrl, profileName } = connection;
-  const isOpen = status === 'OPEN';
-  const isPending = status === 'QRCODE' || status === 'CONNECTING';
-  const [deleting, setDeleting] = useState(false);
+  const { instanceName, displayName, status, phone, profilePicUrl, profileName, pushName, lastUpdated } = connection;
+
+  const isOpen     = status === 'OPEN';
+  const isPending  = status === 'QRCODE' || status === 'CONNECTING';
+  const isOffline  = !isOpen && !isPending;
+
+  const [deleting,      setDeleting]      = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [reconnecting, setReconnecting] = useState(false);
+  const [reconnecting,  setReconnecting]  = useState(false);
 
-  async function handleDelete() {
-    setDeleting(true);
-    await onDelete();
-    setDeleting(false);
-  }
+  async function handleDelete()     { setDeleting(true);      await onDelete();      setDeleting(false); }
+  async function handleDisconnect() { setDisconnecting(true); await onDisconnect();  setDisconnecting(false); }
+  async function handleReconnect()  { setReconnecting(true);  await onReconnect();   setReconnecting(false); }
 
-  async function handleDisconnect() {
-    setDisconnecting(true);
-    await onDisconnect();
-    setDisconnecting(false);
-  }
-
-  async function handleReconnect() {
-    setReconnecting(true);
-    await onReconnect();
-    setReconnecting(false);
-  }
+  const shownName  = pushName ?? profileName ?? displayName;
+  const shownPhone = phone ?? instanceName;
+  const updatedStr = lastUpdated
+    ? lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    : null;
 
   return (
     <Card
@@ -112,33 +129,35 @@ export function ConnectionCard({
 
       <CardHeader className="pb-4">
         <div className="flex items-center gap-3 mb-2 pr-4">
-          {/* Avatar or icon */}
+          {/* Avatar / icon */}
           {isOpen && profilePicUrl ? (
             <Avatar className="h-11 w-11 border border-border">
-              <AvatarImage src={profilePicUrl} alt={profileName ?? instanceName} />
-              <AvatarFallback className={`${iconBg[status]} text-sm`}>
-                {displayName.charAt(0).toUpperCase()}
+              <AvatarImage src={profilePicUrl} alt={shownName} />
+              <AvatarFallback className={`${ICON_BG[status]} text-sm`}>
+                {shownName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
           ) : (
-            <div className={`p-2.5 rounded-xl flex items-center justify-center ${iconBg[status]}`}>
+            <div className={`p-2.5 rounded-xl flex items-center justify-center ${ICON_BG[status]}`}>
               <StatusIcon status={status} />
             </div>
           )}
 
           <div className="flex-1 min-w-0">
-            <CardTitle className="text-lg truncate">
-              {profileName ?? displayName}
-            </CardTitle>
+            <CardTitle className="text-lg truncate">{shownName}</CardTitle>
             <CardDescription className="font-mono mt-0.5 text-sm truncate">
-              {phone ?? instanceName}
+              {shownPhone}
             </CardDescription>
           </div>
 
           {/* Actions menu */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0 text-muted-foreground">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 flex-shrink-0 text-muted-foreground"
+              >
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -193,6 +212,13 @@ export function ConnectionCard({
               {instanceName}
             </span>
           </div>
+
+          {updatedStr && (
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-muted-foreground">Atualizado</span>
+              <span className="text-xs text-muted-foreground">{updatedStr}</span>
+            </div>
+          )}
         </div>
       </CardContent>
 
@@ -206,11 +232,9 @@ export function ConnectionCard({
               onClick={handleReconnect}
               disabled={reconnecting}
             >
-              {reconnecting ? (
-                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3 w-3 mr-1.5" />
-              )}
+              {reconnecting
+                ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                : <RefreshCw className="h-3 w-3 mr-1.5" />}
               Reiniciar
             </Button>
             <Button
@@ -220,11 +244,9 @@ export function ConnectionCard({
               onClick={handleDisconnect}
               disabled={disconnecting}
             >
-              {disconnecting ? (
-                <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-              ) : (
-                <PowerOff className="h-3 w-3 mr-1.5" />
-              )}
+              {disconnecting
+                ? <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                : <PowerOff className="h-3 w-3 mr-1.5" />}
               Desconectar
             </Button>
           </div>
@@ -239,11 +261,9 @@ export function ConnectionCard({
             onClick={handleReconnect}
             disabled={reconnecting}
           >
-            {reconnecting ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
+            {reconnecting
+              ? <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              : <RefreshCw className="h-4 w-4 mr-2" />}
             Reconectar
           </Button>
         )}

@@ -1,7 +1,12 @@
 /**
  * Evolution API service.
- * All communication with the Evolution API must happen through this file.
- * Components must never call fetch/axios directly.
+ * ─────────────────────────────────────────────────────────────────────────────
+ * ALL HTTP communication with the Evolution API happens here — nowhere else.
+ * Components and hooks call these exported functions; they never use axios or
+ * fetch directly.
+ *
+ * Adapter layer: raw API responses are normalised before leaving this file.
+ * The rest of the app never depends on the raw shape.
  */
 import axios, { AxiosInstance, AxiosError } from 'axios';
 import { evolutionConfig } from '@/config/evolution';
@@ -10,61 +15,124 @@ import type {
   EvolutionConnectionStateResponse,
   EvolutionConnectResponse,
   EvolutionCreateResponse,
+  EvolutionApiInfo,
+  EvolutionProfile,
   ConnectionStatus,
   EvolutionState,
 } from '@/types/evolution';
 
-// ─── Axios instance ──────────────────────────────────────────────────────────
+const IS_DEV = import.meta.env.DEV;
 
-function createClient(): AxiosInstance {
+// ─── Singleton axios client ───────────────────────────────────────────────────
+
+let _client: AxiosInstance | null = null;
+
+function getClient(): AxiosInstance {
+  // Re-create if baseURL or apiKey ever changes (e.g. hot-reload in dev)
+  const expectedBase = evolutionConfig.baseUrl;
+  const expectedKey  = evolutionConfig.apiKey;
+
+  if (_client) return _client;
+
   const client = axios.create({
-    baseURL: evolutionConfig.baseUrl,
+    baseURL: expectedBase,
     timeout: 15_000,
     headers: {
       'Content-Type': 'application/json',
-      apikey: evolutionConfig.apiKey,
+      apikey: expectedKey,
     },
   });
 
+  // ── Dev-only request logger ──────────────────────────────────────────────
+  if (IS_DEV) {
+    client.interceptors.request.use((config) => {
+      // Never log the API key value
+      const safeHeaders = { ...config.headers, apikey: '[REDACTED]' };
+      console.debug(
+        `[Evolution] ▶ ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`,
+        { headers: safeHeaders, data: config.data ?? null },
+      );
+      return config;
+    });
+  }
+
+  // ── Response interceptor ─────────────────────────────────────────────────
   client.interceptors.response.use(
-    (res) => res,
+    (res) => {
+      if (IS_DEV) {
+        console.debug(
+          `[Evolution] ◀ ${res.status} ${res.config.url}`,
+          res.data,
+        );
+      }
+      return res;
+    },
     (err: AxiosError) => {
       const status = err.response?.status;
-      const data = err.response?.data as Record<string, unknown> | undefined;
+      const data   = err.response?.data as Record<string, unknown> | undefined;
 
+      if (IS_DEV) {
+        console.warn(
+          `[Evolution] ✖ ${status ?? 'no-response'} ${err.config?.url}`,
+          err.message,
+        );
+      }
+
+      // ── No response at all (CORS / network / offline) ────────────────────
       if (!err.response) {
-        throw new EvolutionError('API offline ou inacessível. Verifique a URL configurada.', 'OFFLINE');
+        throw new EvolutionError(
+          'API offline ou inacessível. Verifique a URL configurada.',
+          'OFFLINE',
+        );
       }
+
+      // ── Auth ─────────────────────────────────────────────────────────────
       if (status === 401 || status === 403) {
-        throw new EvolutionError('API Key inválida ou sem permissão de acesso.', 'UNAUTHORIZED');
+        throw new EvolutionError(
+          'API Key inválida ou sem permissão de acesso.',
+          'UNAUTHORIZED',
+        );
       }
+
+      // ── Not found ────────────────────────────────────────────────────────
       if (status === 404) {
-        const msg =
-          (data?.message as string | undefined) ?? 'Instância não encontrada.';
+        const msg = extractMessage(data) ?? 'Instância não encontrada.';
         throw new EvolutionError(msg, 'NOT_FOUND');
       }
+
+      // ── Unprocessable ────────────────────────────────────────────────────
       if (status === 422) {
-        const inner = (data as { error?: { message?: string } } | undefined)?.error?.message;
-        const msg = inner ?? (data?.message as string | undefined) ?? 'Dados inválidos.';
+        const msg = extractMessage(data) ?? 'Dados inválidos.';
         if (msg.toLowerCase().includes('already')) {
-          throw new EvolutionError('Já existe uma instância com esse nome.', 'DUPLICATE');
+          throw new EvolutionError(
+            'Já existe uma instância com esse nome.',
+            'DUPLICATE',
+          );
         }
         throw new EvolutionError(msg, 'VALIDATION');
       }
+
+      // ── Timeout ──────────────────────────────────────────────────────────
       if (status === 408 || err.code === 'ECONNABORTED') {
-        throw new EvolutionError('Tempo de resposta esgotado (timeout).', 'TIMEOUT');
+        throw new EvolutionError(
+          'Tempo de resposta esgotado (timeout).',
+          'TIMEOUT',
+        );
       }
+
       throw new EvolutionError(
-        (data?.message as string | undefined) ?? 'Erro desconhecido na API.',
+        extractMessage(data) ?? 'Erro desconhecido na API.',
         'UNKNOWN',
       );
     },
   );
 
+  _client = client;
   return client;
 }
 
-/** Typed error thrown by every method in this service. */
+// ─── Typed error ─────────────────────────────────────────────────────────────
+
 export class EvolutionError extends Error {
   constructor(
     message: string,
@@ -83,10 +151,34 @@ export class EvolutionError extends Error {
   }
 }
 
-// ─── State normalisation ─────────────────────────────────────────────────────
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** Extract a human-readable message from an arbitrary API error body. */
+function extractMessage(data: Record<string, unknown> | undefined): string | null {
+  if (!data) return null;
+  // Try common fields across Evolution API versions
+  return (
+    (data.message as string | undefined) ??
+    (data.error as string | undefined) ??
+    ((data as { error?: { message?: string } }).error?.message) ??
+    null
+  );
+}
+
+/** Ensure a base64 string is a valid data URI. */
+function toDataUri(raw: string): string {
+  if (raw.startsWith('data:')) return raw;
+  return `data:image/png;base64,${raw}`;
+}
+
+// ─── Adapter: state normalisation ────────────────────────────────────────────
+
+/**
+ * Converts any raw Evolution API state string into a stable ConnectionStatus.
+ * This is the single place that knows about API version differences.
+ */
 export function normaliseState(raw?: EvolutionState | string | null): ConnectionStatus {
-  switch ((raw ?? '').toLowerCase()) {
+  switch ((raw ?? '').toLowerCase().trim()) {
     case 'open':
       return 'OPEN';
     case 'connecting':
@@ -96,6 +188,12 @@ export function normaliseState(raw?: EvolutionState | string | null): Connection
     case 'close':
     case 'closed':
       return 'CLOSED';
+    case 'disconnected':
+    case 'refused':
+      return 'DISCONNECTED';
+    case 'unknown':
+    case 'error':
+      return 'ERROR';
     default:
       return 'OFFLINE';
   }
@@ -105,15 +203,16 @@ export function normaliseState(raw?: EvolutionState | string | null): Connection
 
 /** List all instances registered in the Evolution API. */
 export async function listInstances(): Promise<EvolutionInstanceItem[]> {
-  const client = createClient();
-  const { data } = await client.get<EvolutionInstanceItem[]>('/instance/fetchInstances');
-  return Array.isArray(data) ? data : [];
+  const { data } = await getClient().get<EvolutionInstanceItem[] | EvolutionInstanceItem>(
+    '/instance/fetchInstances',
+  );
+  // Adapter: some versions return a single object, others an array
+  return Array.isArray(data) ? data : [data];
 }
 
-/** Create a new Baileys instance and return the server response. */
+/** Create a new Baileys instance. */
 export async function createInstance(name: string): Promise<EvolutionCreateResponse> {
-  const client = createClient();
-  const { data } = await client.post<EvolutionCreateResponse>('/instance/create', {
+  const { data } = await getClient().post<EvolutionCreateResponse>('/instance/create', {
     instanceName: name,
     qrcode: true,
     integration: 'WHATSAPP-BAILEYS',
@@ -123,57 +222,91 @@ export async function createInstance(name: string): Promise<EvolutionCreateRespo
 
 /** Delete an instance permanently. */
 export async function deleteInstance(name: string): Promise<void> {
-  const client = createClient();
-  await client.delete(`/instance/delete/${name}`);
+  await getClient().delete(`/instance/delete/${name}`);
 }
 
 /**
  * Fetch the QR code for a given instance.
- * Returns the base64-encoded image string (data URI or raw base64).
+ * Returns a data URI (data:image/png;base64,…).
  */
 export async function fetchQRCode(name: string): Promise<string> {
-  const client = createClient();
-  const { data } = await client.get<EvolutionConnectResponse>(`/instance/connect/${name}`);
+  const { data } = await getClient().get<EvolutionConnectResponse>(
+    `/instance/connect/${name}`,
+  );
 
-  const b64 =
-    data.base64 ??
-    data.qrcode?.base64 ??
-    null;
+  // Adapter: handle both v1 (qrcode.base64) and v2 (base64) shapes
+  const b64 = data.base64 ?? data.qrcode?.base64 ?? null;
 
   if (!b64) {
-    throw new EvolutionError('QR Code expirado ou não disponível.', 'QR_EXPIRED');
+    throw new EvolutionError(
+      'QR Code expirado ou indisponível. Tente reconectar a instância.',
+      'QR_EXPIRED',
+    );
   }
 
-  // Ensure it's a proper data URI
-  if (b64.startsWith('data:')) return b64;
-  return `data:image/png;base64,${b64}`;
+  return toDataUri(b64);
 }
 
-/** Connect (alias for fetchQRCode — triggers the connection flow). */
+/** Alias — triggers the connection flow (same as fetching QR). */
 export const connectInstance = fetchQRCode;
 
 /** Get the current connection state of an instance. */
 export async function getConnectionState(name: string): Promise<ConnectionStatus> {
-  const client = createClient();
-  const { data } = await client.get<EvolutionConnectionStateResponse>(
+  const { data } = await getClient().get<EvolutionConnectionStateResponse>(
     `/instance/connectionState/${name}`,
   );
-  return normaliseState(data?.instance?.state);
+  // Adapter: v1 nests in instance.state, v2 may expose state at root
+  const raw = data?.instance?.state ?? data?.state ?? null;
+  return normaliseState(raw);
 }
 
-/** Logout from WhatsApp (keeps the instance, drops the session). */
+/** Logout from WhatsApp — keeps the instance, drops the session. */
 export async function logoutInstance(name: string): Promise<void> {
-  const client = createClient();
-  await client.delete(`/instance/logout/${name}`);
+  await getClient().delete(`/instance/logout/${name}`);
 }
 
 /** Restart an existing instance. */
 export async function restartInstance(name: string): Promise<void> {
-  const client = createClient();
-  await client.put(`/instance/restart/${name}`);
+  await getClient().put(`/instance/restart/${name}`);
 }
 
-/** Verify reachability and valid API key. Returns true if healthy. */
+/**
+ * Fetch profile info for a connected instance.
+ * Returns null gracefully if the instance isn't connected or profile is unavailable.
+ */
+export async function fetchProfile(instanceName: string): Promise<EvolutionProfile | null> {
+  try {
+    // v2: GET /instance/fetchInstances?instanceName={name} returns rich profile data
+    const { data } = await getClient().get<EvolutionInstanceItem[] | EvolutionInstanceItem>(
+      '/instance/fetchInstances',
+      { params: { instanceName } },
+    );
+    const item = Array.isArray(data) ? data[0] : data;
+    if (!item) return null;
+
+    return {
+      name: item.profileName ?? undefined,
+      pushName: item.profileName ?? undefined,
+      picture: item.profilePicUrl ?? undefined,
+      status: item.profileStatus ?? undefined,
+    };
+  } catch {
+    // Non-fatal — profile fetch is best-effort
+    return null;
+  }
+}
+
+/** Get Evolution API server info (version, status). */
+export async function getApiInfo(): Promise<EvolutionApiInfo> {
+  try {
+    const { data } = await getClient().get<EvolutionApiInfo>('/');
+    return data ?? {};
+  } catch {
+    return {};
+  }
+}
+
+/** Verify reachability and valid API key. Returns { ok, message }. */
 export async function testConnection(): Promise<{ ok: boolean; message: string }> {
   try {
     await listInstances();
