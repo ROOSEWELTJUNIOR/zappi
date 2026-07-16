@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, Edit3, Tag, StickyNote, Globe, Calendar, Smartphone, User2 } from 'lucide-react';
+import { X, Edit3, Tag, StickyNote, Globe, Calendar, Smartphone, User2, Bug, Loader2, Copy, Check } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { Conversation } from '@/types/chat';
+import { debugContactInfo, isPlausiblePhoneNumber, type ContactDebugReport } from '@/services/chat.service';
 
 interface ContactPanelProps {
   conversation: Conversation;
@@ -31,6 +32,34 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
   const [notes, setNotes]   = useState(contact.notes ?? '');
   const [editingNotes, setEditingNotes] = useState(false);
   const [newTag, setNewTag] = useState('');
+
+  const [debugReport, setDebugReport]   = useState<ContactDebugReport | null>(null);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugError, setDebugError]     = useState<string | null>(null);
+  const [copied, setCopied]             = useState(false);
+
+  const isLid = !isPlausiblePhoneNumber(conversation.id);
+
+  const runDebug = async () => {
+    setDebugLoading(true);
+    setDebugError(null);
+    setDebugReport(null);
+    try {
+      const report = await debugContactInfo(instanceName, conversation.id, contact.phone);
+      setDebugReport(report);
+    } catch (e) {
+      setDebugError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setDebugLoading(false);
+    }
+  };
+
+  const copyJson = () => {
+    if (!debugReport) return;
+    navigator.clipboard.writeText(JSON.stringify(debugReport, null, 2));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const addTag = () => {
     const t = newTag.trim();
@@ -144,7 +173,7 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
       </div>
 
       {/* Notes */}
-      <div className="px-4 py-3 space-y-2 flex-1">
+      <div className="px-4 py-3 space-y-2 border-b border-border">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
             <StickyNote className="h-3.5 w-3.5" />
@@ -173,6 +202,87 @@ export function ContactPanel({ conversation, onClose }: ContactPanelProps) {
           </p>
         )}
       </div>
+
+      {/* Debug API section */}
+      <div className="px-4 py-3 space-y-2 flex-1">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Bug className="h-3.5 w-3.5" />
+            <span>Debug API</span>
+            {isLid && (
+              <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">LID</Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {debugReport && (
+              <Button variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={copyJson}>
+                {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                {copied ? 'Copiado' : 'Copiar'}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-xs gap-1"
+              onClick={runDebug}
+              disabled={debugLoading}
+            >
+              {debugLoading
+                ? <Loader2 className="h-3 w-3 animate-spin" />
+                : <Bug className="h-3 w-3" />
+              }
+              {debugLoading ? 'Consultando...' : 'Consultar API'}
+            </Button>
+          </div>
+        </div>
+
+        {isLid && !debugReport && !debugLoading && (
+          <p className="text-[11px] text-amber-600 dark:text-amber-400">
+            JID detectado como LID ({conversation.id}). Clique em "Consultar API" para ver os dados brutos e descobrir onde o número real está.
+          </p>
+        )}
+
+        {debugError && (
+          <p className="text-[11px] text-destructive">{debugError}</p>
+        )}
+
+        {debugReport && (
+          <div className="space-y-2">
+            <DebugSection label="remoteJid / phone" value={{ remoteJid: debugReport.remoteJid, phone: debugReport.phone, isLid }} />
+            <DebugSection label="findChats → este chat" value={debugReport.rawChat} />
+            <DebugSection label="findMessages (3 msgs)" value={debugReport.rawMessages} />
+            <DebugSection label="findContacts → match" value={debugReport.findContacts} />
+            <DebugSection label={`whatsappNumbers [LID: ${debugReport.remoteJid.split('@')[0]}]`} value={debugReport.whatsappNumbersLid} />
+            <DebugSection label={`whatsappNumbers [phone: ${debugReport.phone}]`} value={debugReport.whatsappNumbersPhone} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DebugSection({ label, value }: { label: string; value: unknown }) {
+  const [open, setOpen] = useState(false);
+  const isError = (value as { status?: string })?.status === 'error';
+
+  return (
+    <div className="border border-border rounded-md overflow-hidden text-[11px]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={[
+          'w-full flex items-center justify-between px-2 py-1.5 text-left font-mono font-medium hover:bg-muted/50 transition-colors',
+          isError ? 'text-destructive' : 'text-muted-foreground',
+        ].join(' ')}
+      >
+        <span className="truncate">{label}</span>
+        <span className="shrink-0 ml-2">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <pre className="px-2 py-2 bg-muted/30 text-[10px] overflow-x-auto whitespace-pre-wrap break-all leading-relaxed max-h-64 overflow-y-auto">
+          {JSON.stringify(value, null, 2)}
+        </pre>
+      )}
     </div>
   );
 }

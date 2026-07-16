@@ -418,6 +418,117 @@ export function buildContactUser(conversation: Conversation): ChatUser {
   return { ...conversation.contact };
 }
 
+// ─── Debug / diagnostic helpers ──────────────────────────────────────────────
+
+interface DebugCall {
+  endpoint: string;
+  status: 'ok' | 'error';
+  data?: unknown;
+  error?: string;
+}
+
+async function rawCall(
+  endpoint: string,
+  method: 'GET' | 'POST',
+  body?: unknown,
+): Promise<DebugCall> {
+  const client = getEvolutionClient();
+  try {
+    const { data } =
+      method === 'POST'
+        ? await client.post(endpoint, body ?? {})
+        : await client.get(endpoint);
+    return { endpoint, status: 'ok', data };
+  } catch (err) {
+    return {
+      endpoint,
+      status: 'error',
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+export interface ContactDebugReport {
+  remoteJid: string;
+  phone: string;
+  instanceName: string;
+  /** Raw chat object from findChats (filtered to this remoteJid) */
+  rawChat: DebugCall;
+  /** Raw messages (first 3) from findMessages for this remoteJid */
+  rawMessages: DebugCall;
+  /** findContacts result filtered to this contact (LID or phone) */
+  findContacts: DebugCall;
+  /** /chat/whatsappNumbers with the LID part of remoteJid */
+  whatsappNumbersLid: DebugCall;
+  /** /chat/whatsappNumbers with the extracted phone number */
+  whatsappNumbersPhone: DebugCall;
+}
+
+/**
+ * Fetch raw Evolution API data for a contact — no normalisation.
+ * Use the "Debug API" button in ContactPanel to call this.
+ */
+export async function debugContactInfo(
+  instanceName: string,
+  remoteJid: string,
+  phone: string,
+): Promise<ContactDebugReport> {
+  const lid = remoteJid.split('@')[0];
+
+  const [chats, messages, contacts, lidCheck, phoneCheck] = await Promise.all([
+    rawCall(`/chat/findChats/${instanceName}`, 'POST', {}),
+    rawCall(`/chat/findMessages/${instanceName}`, 'POST', {
+      where: { key: { remoteJid } },
+      limit: 3,
+      page: 1,
+    }),
+    rawCall(`/chat/findContacts/${instanceName}`, 'POST', {}),
+    rawCall(`/chat/whatsappNumbers/${instanceName}`, 'POST', { numbers: [lid] }),
+    rawCall(`/chat/whatsappNumbers/${instanceName}`, 'POST', { numbers: [phone] }),
+  ]);
+
+  // Narrow findChats to just this chat
+  if (chats.status === 'ok' && Array.isArray(chats.data)) {
+    const arr = chats.data as Array<Record<string, unknown>>;
+    const match = arr.find(
+      (c) => c.remoteJid === remoteJid || c.id === remoteJid,
+    );
+    chats.data = match ?? {
+      NOT_FOUND: true,
+      note: `remoteJid "${remoteJid}" não encontrado entre ${arr.length} chats`,
+      firstThree: arr.slice(0, 3),
+    };
+  }
+
+  // Narrow findContacts to this contact
+  if (contacts.status === 'ok' && Array.isArray(contacts.data)) {
+    const arr = contacts.data as Array<Record<string, unknown>>;
+    const match = arr.find(
+      (c) =>
+        (c.remoteJid as string)?.includes(lid) ||
+        (c.remoteJid as string)?.includes(phone) ||
+        c.id === remoteJid,
+    );
+    contacts.data = match
+      ? { MATCH: match, total: arr.length }
+      : { NOT_FOUND: true, total: arr.length, sample: arr.slice(0, 3) };
+  }
+
+  const report: ContactDebugReport = {
+    remoteJid,
+    phone,
+    instanceName,
+    rawChat: chats,
+    rawMessages: messages,
+    findContacts: contacts,
+    whatsappNumbersLid: lidCheck,
+    whatsappNumbersPhone: phoneCheck,
+  };
+
+  console.log('[DEBUG-LID] Relatório completo:', JSON.stringify(report, null, 2));
+  return report;
+}
+
 /**
  * Fetch media content as a base64 data URI via Evolution API.
  * Used as fallback when the direct media URL is inaccessible (CORS / expired).
