@@ -1,4 +1,4 @@
 {
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @workspace/whatsapp-saas build && mkdir -p .vercel/output/static && cp -r public/. .vercel/output/static/ && printf '{\"version\":3,\"routes\":[{\"handle\":\"filesystem\"},{\"src\":\"/(.*)\",\"dest\":\"/index.html\"}]}' > .vercel/output/config.json"
+  "buildCommand": "pnpm --filter @workspace/whatsapp-saas build && mkdir -p .vercel/output/static && cp -r artifacts/whatsapp-saas/dist/. .vercel/output/static/ && printf '{\"version\":3,\"routes\":[{\"handle\":\"filesystem\"},{\"src\":\"/(.*)\",\"dest\":\"/index.html\"}]}' > .vercel/output/config.json"
 }
