@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { findMessages, markAsRead, isPlausiblePhoneNumber } from '@/services/chat.service';
+import { findMessages, markAsRead, isPlausiblePhoneNumber, resolveSendAddress } from '@/services/chat.service';
 import { sendText, buildOptimisticMessage } from '@/services/message.service';
 import type { Message, Conversation } from '@/types/chat';
 
@@ -27,21 +27,6 @@ function mergeMessages(existing: Message[], incoming: Message[]): Message[] {
 /** Sort messages oldest → newest. */
 function sortAsc(messages: Message[]): Message[] {
   return [...messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
-}
-
-/**
- * Determine the address to use when sending a message to this conversation.
- *
- * For LID contacts we ALWAYS use "{lid_digits}@lid" — Baileys resolves this
- * internally. Using the real phone number instead would create a *second*
- * conversation under the phone JID, splitting the chat history.
- *
- * For normal contacts we use the phone number stored in contact.phone.
- */
-function resolveSendAddress(conversation: Conversation): string {
-  const isLid = !isPlausiblePhoneNumber(conversation.id);
-  if (isLid) return `${conversation.id.split('@')[0]}@lid`;
-  return conversation.contact.phone;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────

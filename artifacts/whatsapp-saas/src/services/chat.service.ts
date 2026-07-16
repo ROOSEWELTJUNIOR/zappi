@@ -54,6 +54,19 @@ export function resolvePhoneFromRawMessages(messages: EvolutionMessageRaw[]): st
   return null;
 }
 
+/**
+ * Determine the address to use when sending a message to a conversation.
+ *
+ * For LID contacts we always use "{lid_digits}@lid" so Baileys resolves it
+ * internally. Using the real phone would create a second conversation under
+ * the phone JID, splitting history.
+ */
+export function resolveSendAddress(conversation: Conversation): string {
+  const isLid = !isPlausiblePhoneNumber(conversation.id);
+  if (isLid) return `${conversation.id.split('@')[0]}@lid`;
+  return conversation.contact.phone;
+}
+
 /** Derive a display name from a JID (fallback to formatted phone). */
 export function jidToDisplayName(remoteJid: string, fallback?: string): string {
   if (fallback) return fallback;
