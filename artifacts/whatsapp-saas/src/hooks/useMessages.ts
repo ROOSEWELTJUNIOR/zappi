@@ -30,21 +30,18 @@ function sortAsc(messages: Message[]): Message[] {
 }
 
 /**
- * Scan normalised messages (newest first) for the first valid real phone number.
- * Checks remoteJidAlt (propagated from key.remoteJidAlt) before remoteJid so that
- * LID-addressed chats resolve to the real number.
- * Returns null when no real phone can be determined.
+ * Determine the address to use when sending a message to this conversation.
+ *
+ * For LID contacts we ALWAYS use "{lid_digits}@lid" — Baileys resolves this
+ * internally. Using the real phone number instead would create a *second*
+ * conversation under the phone JID, splitting the chat history.
+ *
+ * For normal contacts we use the phone number stored in contact.phone.
  */
-function resolvePhoneFromMessages(contactPhone: string, messages: Message[]): string | null {
-  if (isPlausiblePhoneNumber(contactPhone)) return contactPhone;
-  const newest = [...messages].reverse();
-  for (const m of newest) {
-    if (m.remoteJidAlt && isPlausiblePhoneNumber(m.remoteJidAlt)) return m.remoteJidAlt.split('@')[0];
-  }
-  for (const m of newest) {
-    if (m.remoteJid && isPlausiblePhoneNumber(m.remoteJid)) return m.remoteJid.split('@')[0];
-  }
-  return null;
+function resolveSendAddress(conversation: Conversation): string {
+  const isLid = !isPlausiblePhoneNumber(conversation.id);
+  if (isLid) return `${conversation.id.split('@')[0]}@lid`;
+  return conversation.contact.phone;
 }
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
@@ -55,16 +52,12 @@ export function useMessages(conversation: Conversation | null) {
   const [sending, setSending]         = useState(false);
   const [hasMore, setHasMore]         = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  /** Resolved real phone number for this contact. null = LID unresolved (can't send). */
-  const [resolvedPhone, setResolvedPhone] = useState<string | null>(null);
 
-  const pollingRef        = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mountedRef        = useRef(true);
-  const convIdRef         = useRef<string | null>(null);
-  const pageRef           = useRef(1);
-  // Always-fresh snapshots for use inside send() callback
-  const messagesRef       = useRef<Message[]>([]);
-  const resolvedPhoneRef  = useRef<string | null>(null);
+  const pollingRef  = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef  = useRef(true);
+  const convIdRef   = useRef<string | null>(null);
+  const pageRef     = useRef(1);
+  const messagesRef = useRef<Message[]>([]);
 
   // ─── Load a page of messages ───────────────────────────────────────────
   const loadPage = useCallback(
@@ -111,7 +104,6 @@ export function useMessages(conversation: Conversation | null) {
   useEffect(() => {
     mountedRef.current = true;
 
-    // Stop previous polling
     if (pollingRef.current) {
       clearInterval(pollingRef.current);
       pollingRef.current = null;
@@ -127,7 +119,6 @@ export function useMessages(conversation: Conversation | null) {
       return;
     }
 
-    // New conversation opened
     convIdRef.current = conversation.id;
     pageRef.current = 1;
     setCurrentPage(1);
@@ -139,7 +130,6 @@ export function useMessages(conversation: Conversation | null) {
       if (!mountedRef.current || convIdRef.current !== conversation.id) return;
       setMessages(sortAsc(initial));
 
-      // Mark unread as read (best effort)
       if (conversation.unreadCount > 0) {
         const toRead = initial
           .filter((m) => !m.fromMe)
@@ -148,7 +138,6 @@ export function useMessages(conversation: Conversation | null) {
         markAsRead(conversation.instanceName, toRead).catch(() => {/* non-fatal */});
       }
 
-      // Start polling
       pollingRef.current = setInterval(() => {
         if (convIdRef.current === conversation.id) {
           pollMessages(conversation);
@@ -165,51 +154,22 @@ export function useMessages(conversation: Conversation | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?.id]);
 
-  // Keep refs in sync so send() can access current values without stale closures.
   useEffect(() => { messagesRef.current = messages; }, [messages]);
-  useEffect(() => { resolvedPhoneRef.current = resolvedPhone; }, [resolvedPhone]);
-
-  // Recompute resolvedPhone whenever messages or the conversation changes.
-  useEffect(() => {
-    if (!conversation) {
-      setResolvedPhone(null);
-      return;
-    }
-    setResolvedPhone(resolvePhoneFromMessages(conversation.contact.phone, messages));
-  }, [messages, conversation?.id, conversation?.contact.phone]);
 
   // ─── Send a message ────────────────────────────────────────────────────
   const send = useCallback(
     async (text: string): Promise<boolean> => {
       if (!conversation || !text.trim() || sending) return false;
 
-      const trimmed = text.trim();
+      const trimmed    = text.trim();
+      const address    = resolveSendAddress(conversation);
       const optimistic = buildOptimisticMessage(conversation.id, trimmed, conversation.instanceName);
 
       setMessages((prev) => [...prev, optimistic]);
       setSending(true);
 
       try {
-        const phone = resolvedPhoneRef.current;
-        let real: Message;
-
-        if (phone) {
-          // Attempt 1: real phone number resolved from message history
-          real = await sendText(conversation.instanceName, phone, trimmed);
-        } else {
-          // Attempt 2: direct LID send — Baileys has an internal LID→JID map and can
-          // route the message even without a resolved phone number.
-          const lidAddress = `${conversation.id.split('@')[0]}@lid`;
-          try {
-            real = await sendText(conversation.instanceName, lidAddress, trimmed);
-          } catch {
-            if (!mountedRef.current) return false;
-            setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
-            toast.error('Número real não disponível — contato usa modo privado do WhatsApp (LID).');
-            return false;
-          }
-        }
-
+        const real = await sendText(conversation.instanceName, address, trimmed);
         if (!mountedRef.current) return true;
         setMessages((prev) =>
           sortAsc(mergeMessages(prev.filter((m) => m.id !== optimistic.id), [real])),
@@ -230,24 +190,16 @@ export function useMessages(conversation: Conversation | null) {
 
   // ─── Media message helpers (used by MessageInput / useUpload) ────────
 
-  /** Add an optimistic media message immediately to the list. */
   const addMessage = useCallback((msg: Message) => {
     setMessages((prev) => sortAsc([...prev, msg]));
   }, []);
 
-  /** Replace an optimistic message with the real one from the API. */
   const replaceMessage = useCallback((optimisticId: string, real: Message) => {
     setMessages((prev) =>
-      sortAsc(
-        mergeMessages(
-          prev.filter((m) => m.id !== optimisticId),
-          [real],
-        ),
-      ),
+      sortAsc(mergeMessages(prev.filter((m) => m.id !== optimisticId), [real])),
     );
   }, []);
 
-  /** Remove a message by ID (used to roll back failed optimistic sends). */
   const removeMessage = useCallback((id: string) => {
     setMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);

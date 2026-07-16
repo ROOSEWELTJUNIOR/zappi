@@ -352,9 +352,38 @@ export async function findChats(instanceName: string): Promise<Conversation[]> {
     }
   }
 
-  return raw
+  const all = raw
     .map((r) => normaliseChat(r, instanceName))
-    .filter((c): c is Conversation => c !== null)
+    .filter((c): c is Conversation => c !== null);
+
+  // Deduplicate: when a LID chat and a phone-JID chat share the same resolved phone
+  // (which happens after accidentally sending via the real number), keep the LID
+  // version so future sends continue to route via @lid and history stays unified.
+  const byPhone = new Map<string, Conversation>();
+  const noPhone: Conversation[] = [];
+
+  for (const conv of all) {
+    const phone = conv.contact.phone;
+    if (!phone || !isPlausiblePhoneNumber(phone)) {
+      noPhone.push(conv);
+      continue;
+    }
+    const existing = byPhone.get(phone);
+    if (!existing) {
+      byPhone.set(phone, conv);
+    } else {
+      const convIsLid     = !isPlausiblePhoneNumber(conv.id);
+      const existingIsLid = !isPlausiblePhoneNumber(existing.id);
+      // Prefer LID over phone-JID; if same type, prefer more recent
+      if (convIsLid && !existingIsLid) {
+        byPhone.set(phone, conv);
+      } else if (!convIsLid && !existingIsLid && conv.updatedAt > existing.updatedAt) {
+        byPhone.set(phone, conv);
+      }
+    }
+  }
+
+  return [...noPhone, ...byPhone.values()]
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
 }
 
