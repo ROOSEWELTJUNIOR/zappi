@@ -183,37 +183,40 @@ export function useMessages(conversation: Conversation | null) {
     async (text: string): Promise<boolean> => {
       if (!conversation || !text.trim() || sending) return false;
 
-      // Guard: refuse to send when no real phone could be resolved (LID unresolved).
-      const phone = resolvedPhoneRef.current;
-      if (!phone) {
-        toast.error('Número real não disponível — contato usa modo privado do WhatsApp (LID). Envio bloqueado.');
-        return false;
-      }
-
       const trimmed = text.trim();
       const optimistic = buildOptimisticMessage(conversation.id, trimmed, conversation.instanceName);
 
-      // Optimistic update
       setMessages((prev) => [...prev, optimistic]);
       setSending(true);
 
       try {
-        const real = await sendText(conversation.instanceName, phone, trimmed);
-        if (!mountedRef.current) return true;
+        const phone = resolvedPhoneRef.current;
+        let real: Message;
 
-        // Replace optimistic with real message
+        if (phone) {
+          // Attempt 1: real phone number resolved from message history
+          real = await sendText(conversation.instanceName, phone, trimmed);
+        } else {
+          // Attempt 2: direct LID send — Baileys has an internal LID→JID map and can
+          // route the message even without a resolved phone number.
+          const lidAddress = `${conversation.id.split('@')[0]}@lid`;
+          try {
+            real = await sendText(conversation.instanceName, lidAddress, trimmed);
+          } catch {
+            if (!mountedRef.current) return false;
+            setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
+            toast.error('Número real não disponível — contato usa modo privado do WhatsApp (LID).');
+            return false;
+          }
+        }
+
+        if (!mountedRef.current) return true;
         setMessages((prev) =>
-          sortAsc(
-            mergeMessages(
-              prev.filter((m) => m.id !== optimistic.id),
-              [real],
-            ),
-          ),
+          sortAsc(mergeMessages(prev.filter((m) => m.id !== optimistic.id), [real])),
         );
         return true;
       } catch (err) {
         if (!mountedRef.current) return false;
-        // Remove optimistic on failure
         setMessages((prev) => prev.filter((m) => m.id !== optimistic.id));
         const msg = err instanceof Error ? err.message : 'Erro ao enviar mensagem.';
         toast.error(msg);
@@ -249,10 +252,6 @@ export function useMessages(conversation: Conversation | null) {
     setMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
-  // True when the contact uses LID addressing AND no real phone was found after loading.
-  const isLidContact = !!conversation && !isPlausiblePhoneNumber(conversation.id);
-  const lidUnresolved = isLidContact && resolvedPhone === null && !loading;
-
   return {
     messages,
     loading,
@@ -264,7 +263,5 @@ export function useMessages(conversation: Conversation | null) {
     addMessage,
     replaceMessage,
     removeMessage,
-    resolvedPhone,
-    lidUnresolved,
   };
 }

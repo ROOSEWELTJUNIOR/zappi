@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import {
-  Phone, Info, ArrowLeft, Loader2, ChevronUp, AlertTriangle,
+  Phone, Info, ArrowLeft, Loader2, ChevronUp,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -191,7 +191,7 @@ export function ChatWindow({
   onBack,
   onInfoToggle,
 }: ChatWindowProps) {
-  const { messages, loading, sending, hasMore, loadMore, send, addMessage, replaceMessage, removeMessage, lidUnresolved } =
+  const { messages, loading, sending, hasMore, loadMore, send, addMessage, replaceMessage, removeMessage } =
     useMessages(conversation);
   const bottomRef    = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
@@ -236,17 +236,10 @@ export function ChatWindow({
         bottomRef={bottomRef}
       />
 
-      {lidUnresolved && (
-        <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 border-t border-amber-200 dark:border-amber-700 text-xs text-amber-700 dark:text-amber-400 shrink-0">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
-          <span>Número real não disponível — contato usa modo privado do WhatsApp (LID). Envio desabilitado.</span>
-        </div>
-      )}
-
       <MessageInput
         onSend={send}
         sending={sending}
-        disabled={lidUnresolved}
+        disabled={false}
         conversation={conversation}
         onOptimisticMessage={addMessage}
         onRealMessage={replaceMessage}
