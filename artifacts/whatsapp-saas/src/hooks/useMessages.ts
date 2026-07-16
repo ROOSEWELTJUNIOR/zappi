@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { findMessages, markAsRead, jidToPhone, isPlausiblePhoneNumber } from '@/services/chat.service';
+import { findMessages, markAsRead, isPlausiblePhoneNumber } from '@/services/chat.service';
 import { sendText, buildOptimisticMessage } from '@/services/message.service';
 import type { Message, Conversation } from '@/types/chat';
 
@@ -29,6 +29,24 @@ function sortAsc(messages: Message[]): Message[] {
   return [...messages].sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
 }
 
+/**
+ * Scan normalised messages (newest first) for the first valid real phone number.
+ * Checks remoteJidAlt (propagated from key.remoteJidAlt) before remoteJid so that
+ * LID-addressed chats resolve to the real number.
+ * Returns null when no real phone can be determined.
+ */
+function resolvePhoneFromMessages(contactPhone: string, messages: Message[]): string | null {
+  if (isPlausiblePhoneNumber(contactPhone)) return contactPhone;
+  const newest = [...messages].reverse();
+  for (const m of newest) {
+    if (m.remoteJidAlt && isPlausiblePhoneNumber(m.remoteJidAlt)) return m.remoteJidAlt.split('@')[0];
+  }
+  for (const m of newest) {
+    if (m.remoteJid && isPlausiblePhoneNumber(m.remoteJid)) return m.remoteJid.split('@')[0];
+  }
+  return null;
+}
+
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useMessages(conversation: Conversation | null) {
@@ -37,13 +55,16 @@ export function useMessages(conversation: Conversation | null) {
   const [sending, setSending]         = useState(false);
   const [hasMore, setHasMore]         = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  /** Resolved real phone number for this contact. null = LID unresolved (can't send). */
+  const [resolvedPhone, setResolvedPhone] = useState<string | null>(null);
 
-  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mountedRef   = useRef(true);
-  const convIdRef    = useRef<string | null>(null);
-  const pageRef      = useRef(1);
-  // Always-fresh snapshot of messages for use inside send() callback
-  const messagesRef  = useRef<Message[]>([]);
+  const pollingRef        = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef        = useRef(true);
+  const convIdRef         = useRef<string | null>(null);
+  const pageRef           = useRef(1);
+  // Always-fresh snapshots for use inside send() callback
+  const messagesRef       = useRef<Message[]>([]);
+  const resolvedPhoneRef  = useRef<string | null>(null);
 
   // ─── Load a page of messages ───────────────────────────────────────────
   const loadPage = useCallback(
@@ -144,14 +165,30 @@ export function useMessages(conversation: Conversation | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?.id]);
 
-  // Keep messagesRef in sync so send() can access current messages without
-  // needing them in its dependency array (avoids stale closure).
+  // Keep refs in sync so send() can access current values without stale closures.
   useEffect(() => { messagesRef.current = messages; }, [messages]);
+  useEffect(() => { resolvedPhoneRef.current = resolvedPhone; }, [resolvedPhone]);
+
+  // Recompute resolvedPhone whenever messages or the conversation changes.
+  useEffect(() => {
+    if (!conversation) {
+      setResolvedPhone(null);
+      return;
+    }
+    setResolvedPhone(resolvePhoneFromMessages(conversation.contact.phone, messages));
+  }, [messages, conversation?.id, conversation?.contact.phone]);
 
   // ─── Send a message ────────────────────────────────────────────────────
   const send = useCallback(
     async (text: string): Promise<boolean> => {
       if (!conversation || !text.trim() || sending) return false;
+
+      // Guard: refuse to send when no real phone could be resolved (LID unresolved).
+      const phone = resolvedPhoneRef.current;
+      if (!phone) {
+        toast.error('Número real não disponível — contato usa modo privado do WhatsApp (LID). Envio bloqueado.');
+        return false;
+      }
 
       const trimmed = text.trim();
       const optimistic = buildOptimisticMessage(conversation.id, trimmed, conversation.instanceName);
@@ -161,26 +198,6 @@ export function useMessages(conversation: Conversation | null) {
       setSending(true);
 
       try {
-        // Resolve the real phone number to use with the Evolution API.
-        // contact.phone is set by normaliseChat; if it's a LID (>13 digits) it wasn't
-        // corrected there (e.g. no lastMessage). In that case scan loaded messages.
-        let phone = conversation.contact.phone;
-        if (!isPlausiblePhoneNumber(phone)) {
-          const fallback = messagesRef.current.find(
-            (m) => m.remoteJid && isPlausiblePhoneNumber(m.remoteJid),
-          );
-          if (fallback) {
-            phone = jidToPhone(fallback.remoteJid);
-            console.warn('[phone-fix] contact.phone inválido, usando remoteJid de mensagem', {
-              invalido: conversation.contact.phone,
-              fallback: phone,
-            });
-          } else {
-            console.warn('[phone-fix] sem fallback válido, enviando com phone original', {
-              phone,
-            });
-          }
-        }
         const real = await sendText(conversation.instanceName, phone, trimmed);
         if (!mountedRef.current) return true;
 
@@ -232,6 +249,10 @@ export function useMessages(conversation: Conversation | null) {
     setMessages((prev) => prev.filter((m) => m.id !== id));
   }, []);
 
+  // True when the contact uses LID addressing AND no real phone was found after loading.
+  const isLidContact = !!conversation && !isPlausiblePhoneNumber(conversation.id);
+  const lidUnresolved = isLidContact && resolvedPhone === null && !loading;
+
   return {
     messages,
     loading,
@@ -243,5 +264,7 @@ export function useMessages(conversation: Conversation | null) {
     addMessage,
     replaceMessage,
     removeMessage,
+    resolvedPhone,
+    lidUnresolved,
   };
 }

@@ -36,6 +36,24 @@ export function isPlausiblePhoneNumber(jidOrPhone: string): boolean {
   return digits.length >= 10 && digits.length <= 13;
 }
 
+/**
+ * Scan raw Evolution API messages from first → last, returning the first valid real
+ * phone number found in key.remoteJidAlt.  Falls back to key.remoteJid when
+ * remoteJidAlt is absent but remoteJid itself is a valid phone (non-LID).
+ * Returns null when no real phone can be determined.
+ */
+export function resolvePhoneFromRawMessages(messages: EvolutionMessageRaw[]): string | null {
+  for (const msg of messages) {
+    const alt = msg.key?.remoteJidAlt;
+    if (alt && isPlausiblePhoneNumber(alt)) return alt.split('@')[0];
+  }
+  for (const msg of messages) {
+    const jid = msg.key?.remoteJid;
+    if (jid && isPlausiblePhoneNumber(jid)) return jid.split('@')[0];
+  }
+  return null;
+}
+
 /** Derive a display name from a JID (fallback to formatted phone). */
 export function jidToDisplayName(remoteJid: string, fallback?: string): string {
   if (fallback) return fallback;
@@ -202,6 +220,7 @@ export function normaliseMessage(
   return {
     id: raw.key.id,
     remoteJid: raw.key.remoteJid,
+    remoteJidAlt: raw.key.remoteJidAlt,
     fromMe: raw.key.fromMe,
     content: extractText(raw.message),
     type,
@@ -270,18 +289,19 @@ function normaliseChat(
   // "<lid>@s.whatsapp.net" (e.g. "120074904043619@s.whatsapp.net"). The LID part has
   // 15 digits and is NOT a real phone number — the Evolution API will reject it with
   // 400 (exists: false). We detect this by checking digit length: real phones are
-  // 10-13 digits; LIDs are 15+. When detected, we recover the real phone from the
-  // last message's key (which always carries the real @s.whatsapp.net JID).
+  // 10-13 digits; LIDs are 15+. When detected, we recover the real phone from
+  // key.remoteJidAlt of the lastMessage (which carries the real JID when available).
   if (!isPlausiblePhoneNumber(jid)) {
-    const fallback =
-      raw.lastMessage?.key?.remoteJid ??
-      raw.lastMessage?.key?.remoteJidAlt;
-    if (fallback && isPlausiblePhoneNumber(fallback)) {
-      console.warn('[phone-fix] chat JID inválido (LID?), usando fallback de lastMessage', {
+    const candidates: EvolutionMessageRaw[] = lastMsgRaw?.key
+      ? [lastMsgRaw as EvolutionMessageRaw]
+      : [];
+    const resolved = resolvePhoneFromRawMessages(candidates);
+    if (resolved) {
+      console.warn('[phone-fix] LID detectado, phone resolvido de lastMessage.key.remoteJidAlt', {
         chatJid: jid,
-        fallbackUsed: fallback,
+        resolved,
       });
-      contact.phone = jidToPhone(fallback);
+      contact.phone = resolved;
     }
   }
 
@@ -471,21 +491,53 @@ export interface ContactDebugReport {
 export async function debugContactInfo(
   instanceName: string,
   remoteJid: string,
-  phone: string,
+  _contactPhone: string,  // may be the LID itself — do NOT use directly for whatsappNumbers
 ): Promise<ContactDebugReport> {
   const lid = remoteJid.split('@')[0];
 
-  const [chats, messages, contacts, lidCheck, phoneCheck] = await Promise.all([
+  // Batch 1: fetch chats, messages, contacts, and LID check in parallel.
+  // whatsappNumbersPhone is intentionally NOT in this batch — we need to extract the
+  // real phone from the raw messages first.
+  const [chats, messages, contacts, lidCheck] = await Promise.all([
     rawCall(`/chat/findChats/${instanceName}`, 'POST', {}),
     rawCall(`/chat/findMessages/${instanceName}`, 'POST', {
       where: { key: { remoteJid } },
-      limit: 3,
+      limit: 10,  // more messages = more chances to find remoteJidAlt
       page: 1,
     }),
     rawCall(`/chat/findContacts/${instanceName}`, 'POST', {}),
     rawCall(`/chat/whatsappNumbers/${instanceName}`, 'POST', { numbers: [lid] }),
-    rawCall(`/chat/whatsappNumbers/${instanceName}`, 'POST', { numbers: [phone] }),
   ]);
+
+  // Extract the real phone from raw message records by scanning remoteJidAlt.
+  type RawData = { messages?: { records?: EvolutionMessageRaw[] }; records?: EvolutionMessageRaw[] };
+  const rawData = messages.data as RawData | EvolutionMessageRaw[] | null;
+  const records: EvolutionMessageRaw[] = Array.isArray(rawData)
+    ? rawData
+    : ((rawData as RawData)?.messages?.records ?? (rawData as RawData)?.records ?? []);
+
+  const resolvedPhone = resolvePhoneFromRawMessages(records);
+
+  console.log('[DEBUG-LID] extração de phone para whatsappNumbersPhone:', {
+    remoteJid,
+    lid,
+    totalMsgs: records.length,
+    remoteJidAltSample: records.slice(0, 5).map((m) => ({
+      id: m.key?.id,
+      remoteJid: m.key?.remoteJid,
+      remoteJidAlt: m.key?.remoteJidAlt,
+    })),
+    resolvedPhone,
+    source: resolvedPhone ? 'remoteJidAlt from messages' : 'NOT FOUND',
+  });
+
+  // Batch 2: now call whatsappNumbers with the real phone (or LID as fallback).
+  const phoneToCheck = resolvedPhone ?? lid;
+  const phoneCheck = await rawCall(
+    `/chat/whatsappNumbers/${instanceName}`,
+    'POST',
+    { numbers: [phoneToCheck] },
+  );
 
   // Narrow findChats to just this chat
   if (chats.status === 'ok' && Array.isArray(chats.data)) {
@@ -506,7 +558,7 @@ export async function debugContactInfo(
     const match = arr.find(
       (c) =>
         (c.remoteJid as string)?.includes(lid) ||
-        (c.remoteJid as string)?.includes(phone) ||
+        (resolvedPhone && (c.remoteJid as string)?.includes(resolvedPhone)) ||
         c.id === remoteJid,
     );
     contacts.data = match
@@ -516,13 +568,16 @@ export async function debugContactInfo(
 
   const report: ContactDebugReport = {
     remoteJid,
-    phone,
+    phone: resolvedPhone ?? `[LID - não resolvido: ${lid}]`,
     instanceName,
     rawChat: chats,
     rawMessages: messages,
     findContacts: contacts,
     whatsappNumbersLid: lidCheck,
-    whatsappNumbersPhone: phoneCheck,
+    whatsappNumbersPhone: {
+      ...phoneCheck,
+      endpoint: `${phoneCheck.endpoint} [number usado: ${phoneToCheck}]`,
+    },
   };
 
   console.log('[DEBUG-LID] Relatório completo:', JSON.stringify(report, null, 2));

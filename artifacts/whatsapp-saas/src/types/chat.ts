@@ -186,6 +186,8 @@ export interface ChatUser {
 export interface Message {
   id: string;
   remoteJid: string;
+  /** Real phone JID when the chat uses LID addressing. Mirrors key.remoteJidAlt from the raw API. */
+  remoteJidAlt?: string;
   fromMe: boolean;
   content: string;
   type: MessageType;
