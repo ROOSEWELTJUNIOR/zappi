@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { findMessages, markAsRead } from '@/services/chat.service';
+import { findMessages, markAsRead, jidToPhone, isPlausiblePhoneNumber } from '@/services/chat.service';
 import { sendText, buildOptimisticMessage } from '@/services/message.service';
 import type { Message, Conversation } from '@/types/chat';
 
@@ -38,10 +38,12 @@ export function useMessages(conversation: Conversation | null) {
   const [hasMore, setHasMore]         = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const pollingRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const mountedRef  = useRef(true);
-  const convIdRef   = useRef<string | null>(null);
-  const pageRef     = useRef(1);
+  const pollingRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const mountedRef   = useRef(true);
+  const convIdRef    = useRef<string | null>(null);
+  const pageRef      = useRef(1);
+  // Always-fresh snapshot of messages for use inside send() callback
+  const messagesRef  = useRef<Message[]>([]);
 
   // ─── Load a page of messages ───────────────────────────────────────────
   const loadPage = useCallback(
@@ -142,6 +144,10 @@ export function useMessages(conversation: Conversation | null) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversation?.id]);
 
+  // Keep messagesRef in sync so send() can access current messages without
+  // needing them in its dependency array (avoids stale closure).
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
+
   // ─── Send a message ────────────────────────────────────────────────────
   const send = useCallback(
     async (text: string): Promise<boolean> => {
@@ -155,9 +161,26 @@ export function useMessages(conversation: Conversation | null) {
       setSending(true);
 
       try {
-        // Use contact.phone which is always the real phone number.
-        // For @lid chats, normaliseChat already resolved it from the last message key.
-        const phone = conversation.contact.phone;
+        // Resolve the real phone number to use with the Evolution API.
+        // contact.phone is set by normaliseChat; if it's a LID (>13 digits) it wasn't
+        // corrected there (e.g. no lastMessage). In that case scan loaded messages.
+        let phone = conversation.contact.phone;
+        if (!isPlausiblePhoneNumber(phone)) {
+          const fallback = messagesRef.current.find(
+            (m) => m.remoteJid && isPlausiblePhoneNumber(m.remoteJid),
+          );
+          if (fallback) {
+            phone = jidToPhone(fallback.remoteJid);
+            console.warn('[phone-fix] contact.phone inválido, usando remoteJid de mensagem', {
+              invalido: conversation.contact.phone,
+              fallback: phone,
+            });
+          } else {
+            console.warn('[phone-fix] sem fallback válido, enviando com phone original', {
+              phone,
+            });
+          }
+        }
         const real = await sendText(conversation.instanceName, phone, trimmed);
         if (!mountedRef.current) return true;
 

@@ -20,9 +20,20 @@ import type {
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
 
-/** Strip @s.whatsapp.net / @g.us from a JID to get the raw phone number. */
+/** Strip @s.whatsapp.net / @g.us / @lid from a JID to get the raw phone number. */
 export function jidToPhone(remoteJid: string): string {
   return remoteJid.replace(/@.*$/, '');
+}
+
+/**
+ * Returns true when the digit-only part of a JID looks like a real phone number
+ * (10 – 13 digits, which covers all WhatsApp-compatible E.164 numbers used in the
+ * regions this app targets).  WhatsApp Linked IDs (LIDs) that arrive disguised as
+ * normal @s.whatsapp.net JIDs have 15 digits and will fail this check.
+ */
+export function isPlausiblePhoneNumber(jidOrPhone: string): boolean {
+  const digits = jidOrPhone.split('@')[0].replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 13;
 }
 
 /** Derive a display name from a JID (fallback to formatted phone). */
@@ -255,13 +266,23 @@ function normaliseChat(
   const contact = buildChatUser(jid, displayName, raw.pushName ?? undefined);
   contact.profilePicUrl = raw.profilePicUrl ?? null;
 
-  // When the chat JID is @lid (WhatsApp Linked ID mode), jidToPhone() would return
-  // the internal LID number (e.g. "120074904043619") which is NOT a phone number and
-  // will be rejected by the Evolution API sendText/sendMedia endpoints with 400.
-  // The real phone lives in the last message's key.remoteJid (always @s.whatsapp.net).
-  const lastMsgKeyJid = raw.lastMessage?.key?.remoteJid;
-  if (jid.endsWith('@lid') && lastMsgKeyJid && !lastMsgKeyJid.endsWith('@lid')) {
-    contact.phone = jidToPhone(lastMsgKeyJid);
+  // When WhatsApp uses Linked ID (LID) addressing the chat JID arrives as
+  // "<lid>@s.whatsapp.net" (e.g. "120074904043619@s.whatsapp.net"). The LID part has
+  // 15 digits and is NOT a real phone number — the Evolution API will reject it with
+  // 400 (exists: false). We detect this by checking digit length: real phones are
+  // 10-13 digits; LIDs are 15+. When detected, we recover the real phone from the
+  // last message's key (which always carries the real @s.whatsapp.net JID).
+  if (!isPlausiblePhoneNumber(jid)) {
+    const fallback =
+      raw.lastMessage?.key?.remoteJid ??
+      raw.lastMessage?.key?.remoteJidAlt;
+    if (fallback && isPlausiblePhoneNumber(fallback)) {
+      console.warn('[phone-fix] chat JID inválido (LID?), usando fallback de lastMessage', {
+        chatJid: jid,
+        fallbackUsed: fallback,
+      });
+      contact.phone = jidToPhone(fallback);
+    }
   }
 
   return {

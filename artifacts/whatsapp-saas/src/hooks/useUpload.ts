@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { uploadService } from '@/services/upload.service';
 import { classifyMimetype } from '@/services/storage/interfaces/StorageFile';
 import { sendMedia, buildOptimisticMediaMessage } from '@/services/message.service';
+import { isPlausiblePhoneNumber } from '@/services/chat.service';
 import type { UploadItem } from '@/services/storage/interfaces/StorageUpload';
 import type { Conversation, Message } from '@/types/chat';
 
@@ -118,9 +119,15 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     );
     if (!queued.length) return;
 
-    // Use contact.phone which is always the real phone number.
-    // For @lid chats, normaliseChat already resolved it from the last message key.
+    // contact.phone is set by normaliseChat; should already be the real phone.
+    // Warn here if it still looks like a LID so it's visible in the console.
     const phone = conversation.contact.phone;
+    if (!isPlausiblePhoneNumber(phone)) {
+      console.warn('[phone-fix] useUpload: contact.phone parece um LID — envio pode falhar', {
+        phone,
+        chatId: conversation.id,
+      });
+    }
 
     for (const item of queued) {
       // 1. Upload file to storage (S3 or base64)
