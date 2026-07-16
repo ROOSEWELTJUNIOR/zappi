@@ -136,7 +136,7 @@ export default function Settings() {
                 </div>
               </CardContent>
               <CardFooter className="border-t border-border py-4 bg-muted/10">
-                <Button className="ml-auto shadow-[0_0_12px_rgba(124,58,237,0.3)]">Salvar Alterações</Button>
+                <Button className="ml-auto shadow-[0_0_12px_rgba(0,80,143,0.3)]">Salvar Alterações</Button>
               </CardFooter>
             </Card>
           </TabsContent>
@@ -182,7 +182,7 @@ export default function Settings() {
                     <CardTitle>Seu Plano Atual</CardTitle>
                     <CardDescription>Detalhes da sua assinatura.</CardDescription>
                   </div>
-                  <Badge variant="default" className="text-sm px-3 py-1 shadow-[0_0_12px_rgba(124,58,237,0.3)]">{currentCompany?.plan}</Badge>
+                  <Badge variant="default" className="text-sm px-3 py-1 shadow-[0_0_12px_rgba(0,80,143,0.3)]">{currentCompany?.plan}</Badge>
                 </div>
               </CardHeader>
               <CardContent className="space-y-6">

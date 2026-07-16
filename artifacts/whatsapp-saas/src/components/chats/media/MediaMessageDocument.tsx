@@ -60,8 +60,8 @@ function getDocStyle(mimetype?: string): {
   if (m.includes('json') || m.includes('text') || m.includes('plain'))
     return {
       icon: <FileCode className="w-5 h-5" />,
-      colorClass: 'text-violet-400',
-      bgClass: 'bg-violet-500/15',
+      colorClass: 'text-primary',
+      bgClass: 'bg-primary/15',
     };
 
   return {

@@ -70,7 +70,7 @@ export function Sidebar({
               className={cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-all group",
                 isActive
-                  ? "bg-primary text-white shadow-[0_0_16px_rgba(124,58,237,0.35)]"
+                  ? "bg-primary text-white shadow-[0_0_16px_rgba(0,80,143,0.35)]"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 isCollapsed && "justify-center px-0"
               )}

@@ -109,7 +109,7 @@ export default function CreateCompany() {
       <div className="w-full max-w-lg">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(124,58,237,0.4)]">
+          <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center mb-4 shadow-[0_0_20px_rgba(0,80,143,0.4)]">
             <Zap className="w-6 h-6 text-white" fill="white" />
           </div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">FlowBot</h1>
@@ -126,7 +126,7 @@ export default function CreateCompany() {
           </div>
           <div className="flex-1 h-px bg-border" />
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-[0_0_8px_rgba(124,58,237,0.5)]">
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-[0_0_8px_rgba(0,80,143,0.5)]">
               <span className="text-xs text-white font-semibold">2</span>
             </div>
             <span className="text-xs text-foreground font-medium">Sua empresa</span>
@@ -290,7 +290,7 @@ export default function CreateCompany() {
               <Button
                 data-testid="button-submit"
                 type="submit"
-                className="w-full font-semibold py-5 mt-2 bg-primary hover:bg-primary/90 shadow-[0_0_16px_rgba(124,58,237,0.35)] transition-all"
+                className="w-full font-semibold py-5 mt-2 bg-primary hover:bg-primary/90 shadow-[0_0_16px_rgba(0,80,143,0.35)] transition-all"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (

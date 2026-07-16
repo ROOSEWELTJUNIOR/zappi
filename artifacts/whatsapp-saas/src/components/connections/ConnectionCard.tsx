@@ -251,7 +251,7 @@ export function ConnectionCard({
             </Button>
           </div>
         ) : isPending ? (
-          <Button className="w-full shadow-[0_0_16px_rgba(124,58,237,0.2)]" onClick={onConnect}>
+          <Button className="w-full shadow-[0_0_16px_rgba(0,80,143,0.2)]" onClick={onConnect}>
             <QrCode className="h-4 w-4 mr-2" />
             Ler QR Code
           </Button>

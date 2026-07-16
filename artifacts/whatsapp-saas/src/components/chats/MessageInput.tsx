@@ -223,7 +223,7 @@ export function MessageInput({
             className={[
               'shrink-0 h-9 w-9 rounded-lg transition-all',
               canSend
-                ? 'bg-primary text-primary-foreground shadow-[0_0_12px_rgba(124,58,237,0.35)] hover:shadow-[0_0_18px_rgba(124,58,237,0.5)]'
+                ? 'bg-primary text-primary-foreground shadow-[0_0_12px_rgba(0,80,143,0.35)] hover:shadow-[0_0_18px_rgba(0,80,143,0.5)]'
                 : 'bg-muted text-muted-foreground cursor-not-allowed',
             ].join(' ')}
             onClick={handleSend}

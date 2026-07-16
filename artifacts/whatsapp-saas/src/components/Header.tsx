@@ -34,7 +34,7 @@ export function Header({
         </button>
         
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white shadow-[0_0_12px_rgba(124,58,237,0.4)]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-white shadow-[0_0_12px_rgba(0,80,143,0.4)]">
             <span className="font-bold text-lg leading-none">F</span>
           </div>
           <span className="hidden md:inline-block text-lg font-bold tracking-tight">FlowBot</span>

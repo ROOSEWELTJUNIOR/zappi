@@ -29,7 +29,7 @@ const pieData = [
   { name: 'Outros', value: 50 },
 ]
 
-const COLORS = ['hsl(263, 72%, 57%)', 'hsl(258, 90%, 66%)', 'hsl(240, 4%, 65%)', 'hsl(240, 4%, 40%)']
+const COLORS = ['#00508F', '#0070C8', 'hsl(240, 4%, 65%)', 'hsl(240, 4%, 40%)']
 
 const recentActivity = [
   { id: 1, name: "Maria Oliveira", phone: "+55 11 9****-1234", status: "Novo Lead", statusVariant: "info" as const, time: "Há 5 min" },

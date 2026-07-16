@@ -21,7 +21,7 @@ export default function NotFound() {
           </p>
           
           <Link href="/dashboard" className="w-full">
-            <Button className="w-full py-6 text-base font-semibold shadow-[0_0_16px_rgba(124,58,237,0.2)]">
+            <Button className="w-full py-6 text-base font-semibold shadow-[0_0_16px_rgba(0,80,143,0.2)]">
               Voltar ao Dashboard
             </Button>
           </Link>
