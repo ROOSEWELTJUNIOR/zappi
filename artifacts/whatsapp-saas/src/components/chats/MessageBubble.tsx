@@ -1,6 +1,33 @@
-import { memo } from 'react';
-import { Check, CheckCheck, Clock, Image, FileText, Mic, Video, MapPin, User, Smile } from 'lucide-react';
+/**
+ * MessageBubble — renders a single chat message bubble.
+ *
+ * Routes each MessageType to its dedicated media component:
+ *  image    → MediaMessageImage
+ *  video    → MediaMessageVideo
+ *  audio    → MediaMessageAudio
+ *  document → MediaMessageDocument
+ *  sticker  → MediaMessageSticker
+ *  location → MediaMessageLocation
+ *  contact  → MediaMessageContact
+ *  gif      → MediaMessageImage (treated as animated image)
+ *  text / reaction / poll / unknown → inline renderers
+ *
+ * All media components are lazy-loaded to keep the initial bundle small.
+ * DateSeparator is kept as a named export (used by ChatWindow).
+ */
+import { memo, lazy, Suspense } from 'react';
+import { Check, CheckCheck, Clock } from 'lucide-react';
 import type { Message, MessageStatus } from '@/types/chat';
+
+// ─── Lazy media components ─────────────────────────────────────────────────────
+
+const MediaMessageImage    = lazy(() => import('./media/MediaMessageImage').then((m) => ({ default: m.MediaMessageImage })));
+const MediaMessageVideo    = lazy(() => import('./media/MediaMessageVideo').then((m) => ({ default: m.MediaMessageVideo })));
+const MediaMessageAudio    = lazy(() => import('./media/MediaMessageAudio').then((m) => ({ default: m.MediaMessageAudio })));
+const MediaMessageDocument = lazy(() => import('./media/MediaMessageDocument').then((m) => ({ default: m.MediaMessageDocument })));
+const MediaMessageSticker  = lazy(() => import('./media/MediaMessageSticker').then((m) => ({ default: m.MediaMessageSticker })));
+const MediaMessageLocation = lazy(() => import('./media/MediaMessageLocation').then((m) => ({ default: m.MediaMessageLocation })));
+const MediaMessageContact  = lazy(() => import('./media/MediaMessageContact').then((m) => ({ default: m.MediaMessageContact })));
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,127 +46,146 @@ function formatDate(date: Date): string {
 
 function StatusIcon({ status }: { status: MessageStatus }) {
   switch (status) {
-    case 'PENDING':
-      return <Clock className="w-3 h-3" />;
-    case 'SENT':
-      return <Check className="w-3 h-3" />;
-    case 'DELIVERED':
-      return <CheckCheck className="w-3 h-3" />;
-    case 'READ':
-      return <CheckCheck className="w-3 h-3 text-sky-400" />;
+    case 'PENDING':   return <Clock     className="w-3 h-3" />;
+    case 'SENT':      return <Check     className="w-3 h-3" />;
+    case 'DELIVERED': return <CheckCheck className="w-3 h-3" />;
+    case 'READ':      return <CheckCheck className="w-3 h-3 text-sky-400" />;
   }
 }
 
-// ─── Media placeholder components ────────────────────────────────────────────
+// ─── Fallback skeleton (while lazy component loads) ───────────────────────────
 
-function ImagePlaceholder({ caption }: { caption?: string }) {
+function MediaSkeleton() {
   return (
-    <div className="rounded-lg overflow-hidden">
-      <div className="w-48 h-36 bg-black/10 flex items-center justify-center rounded-lg border border-border/40">
-        <Image className="w-8 h-8 opacity-30" />
-      </div>
-      {caption && <p className="text-sm mt-1">{caption}</p>}
-    </div>
+    <div className="w-48 h-28 rounded-xl bg-muted/30 animate-pulse" />
   );
 }
 
-function AudioPlaceholder() {
-  return (
-    <div className="flex items-center gap-3 bg-black/5 rounded-xl px-3 py-2.5 min-w-[180px]">
-      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-        <Mic className="w-4 h-4 text-primary" />
-      </div>
-      <div className="flex-1 h-1 bg-border rounded-full" />
-      <span className="text-xs text-muted-foreground shrink-0">0:00</span>
-    </div>
-  );
-}
-
-function VideoPlaceholder({ caption }: { caption?: string }) {
-  return (
-    <div className="rounded-lg overflow-hidden">
-      <div className="w-48 h-36 bg-black/10 flex items-center justify-center rounded-lg border border-border/40">
-        <Video className="w-8 h-8 opacity-30" />
-      </div>
-      {caption && <p className="text-sm mt-1">{caption}</p>}
-    </div>
-  );
-}
-
-function DocumentPlaceholder({ fileName }: { fileName?: string }) {
-  return (
-    <div className="flex items-center gap-3 bg-black/5 rounded-xl px-3 py-2.5 min-w-[180px]">
-      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
-        <FileText className="w-4 h-4 text-blue-500" />
-      </div>
-      <span className="text-sm truncate max-w-[130px]">{fileName ?? 'Documento'}</span>
-    </div>
-  );
-}
-
-function StickerPlaceholder() {
-  return (
-    <div className="w-20 h-20 bg-black/5 rounded-xl flex items-center justify-center">
-      <Smile className="w-8 h-8 opacity-30" />
-    </div>
-  );
-}
-
-function LocationPlaceholder({ content }: { content: string }) {
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <MapPin className="w-4 h-4 text-red-500 shrink-0" />
-      <span>{content || 'Localização'}</span>
-    </div>
-  );
-}
-
-function ContactPlaceholder({ content }: { content: string }) {
-  return (
-    <div className="flex items-center gap-2 text-sm">
-      <User className="w-4 h-4 text-primary shrink-0" />
-      <span>{content || 'Contato'}</span>
-    </div>
-  );
-}
-
-// ─── Message content renderer ─────────────────────────────────────────────────
+// ─── Message content router ───────────────────────────────────────────────────
 
 function MessageContent({ message }: { message: Message }) {
-  const { type, content, attachment } = message;
+  const { type, content, attachment, fromMe } = message;
 
   switch (type) {
     case 'image':
-      return <ImagePlaceholder caption={content || attachment?.caption} />;
-    case 'audio':
-      return <AudioPlaceholder />;
+      return (
+        <Suspense fallback={<MediaSkeleton />}>
+          <MediaMessageImage
+            attachment={attachment ?? { type: 'image' }}
+            fromMe={fromMe}
+          />
+        </Suspense>
+      );
+
+    case 'gif':
+      // GIF treated as image; the attachment carries the video URL
+      return (
+        <Suspense fallback={<MediaSkeleton />}>
+          <MediaMessageImage
+            attachment={{ ...(attachment ?? { type: 'image' }), type: 'image' }}
+            fromMe={fromMe}
+          />
+        </Suspense>
+      );
+
     case 'video':
-      return <VideoPlaceholder caption={content || attachment?.caption} />;
+      return (
+        <Suspense fallback={<MediaSkeleton />}>
+          <MediaMessageVideo attachment={attachment ?? { type: 'video' }} />
+        </Suspense>
+      );
+
+    case 'audio':
+      return (
+        <Suspense fallback={
+          <div className="flex items-center gap-3 bg-muted/30 rounded-xl px-3 py-2.5 min-w-[220px] animate-pulse">
+            <div className="w-9 h-9 rounded-full bg-muted/60" />
+            <div className="flex-1 h-2 bg-muted/60 rounded" />
+          </div>
+        }>
+          <MediaMessageAudio
+            attachment={attachment ?? { type: 'audio' }}
+            fromMe={fromMe}
+          />
+        </Suspense>
+      );
+
     case 'document':
-      return <DocumentPlaceholder fileName={attachment?.fileName ?? content} />;
+      return (
+        <Suspense fallback={
+          <div className="flex items-center gap-3 bg-muted/20 rounded-xl px-3 py-2.5 min-w-[200px] animate-pulse">
+            <div className="w-10 h-10 rounded-lg bg-muted/60 shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-2.5 bg-muted/60 rounded w-3/4" />
+              <div className="h-2 bg-muted/40 rounded w-1/2" />
+            </div>
+          </div>
+        }>
+          <MediaMessageDocument
+            attachment={attachment ?? { type: 'document' }}
+            content={content}
+            fromMe={fromMe}
+          />
+        </Suspense>
+      );
+
     case 'sticker':
-      return <StickerPlaceholder />;
+      return (
+        <Suspense fallback={<div className="w-28 h-28 rounded-xl bg-muted/20 animate-pulse" />}>
+          <MediaMessageSticker attachment={attachment ?? { type: 'sticker' }} />
+        </Suspense>
+      );
+
     case 'location':
-      return <LocationPlaceholder content={content} />;
+      return (
+        <Suspense fallback={<MediaSkeleton />}>
+          <MediaMessageLocation message={message} />
+        </Suspense>
+      );
+
     case 'contact':
-      return <ContactPlaceholder content={content} />;
+      return (
+        <Suspense fallback={
+          <div className="flex items-center gap-3 bg-muted/20 rounded-xl px-3 py-2.5 min-w-[180px] animate-pulse">
+            <div className="w-10 h-10 rounded-full bg-muted/60 shrink-0" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-2.5 bg-muted/60 rounded w-2/3" />
+            </div>
+          </div>
+        }>
+          <MediaMessageContact message={message} />
+        </Suspense>
+      );
+
+    case 'reaction':
+      return (
+        <span className="text-2xl leading-tight select-none">{content || '👍'}</span>
+      );
+
+    case 'poll':
+      return (
+        <div className="flex flex-col gap-1.5 min-w-[160px]">
+          <p className="text-sm font-semibold">{content}</p>
+          <p className="text-[10px] text-muted-foreground">Enquete · Toque para votar</p>
+        </div>
+      );
+
     case 'unknown':
       return (
         <span className="text-sm italic text-muted-foreground">
           [mensagem não suportada]
         </span>
       );
+
     default:
-      // text / reaction / extendedText
+      // text + extendedText
       return (
-        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
-          {content}
-        </p>
+        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{content}</p>
       );
   }
 }
 
-// ─── Date separator ───────────────────────────────────────────────────────────
+// ─── Date separator (named export — used by ChatWindow) ───────────────────────
 
 export function DateSeparator({ date }: { date: Date }) {
   return (
@@ -160,9 +206,17 @@ interface MessageBubbleProps {
 export const MessageBubble = memo(function MessageBubble({ message }: MessageBubbleProps) {
   const isOutgoing = message.fromMe;
 
+  // Stickers have no bubble shell
+  if (message.type === 'sticker') {
+    return (
+      <div className={`flex gap-2 max-w-[80%] ${isOutgoing ? 'self-end flex-row-reverse' : 'self-start'}`}>
+        <MessageContent message={message} />
+      </div>
+    );
+  }
+
   return (
     <div className={`flex gap-2 max-w-[80%] ${isOutgoing ? 'self-end flex-row-reverse' : 'self-start'}`}>
-      {/* Bubble */}
       <div
         className={[
           'relative px-3 py-2 rounded-2xl shadow-sm',

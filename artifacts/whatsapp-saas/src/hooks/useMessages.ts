@@ -183,6 +183,30 @@ export function useMessages(conversation: Conversation | null) {
     [conversation, sending],
   );
 
+  // ─── Media message helpers (used by MessageInput / useUpload) ────────
+
+  /** Add an optimistic media message immediately to the list. */
+  const addMessage = useCallback((msg: Message) => {
+    setMessages((prev) => sortAsc([...prev, msg]));
+  }, []);
+
+  /** Replace an optimistic message with the real one from the API. */
+  const replaceMessage = useCallback((optimisticId: string, real: Message) => {
+    setMessages((prev) =>
+      sortAsc(
+        mergeMessages(
+          prev.filter((m) => m.id !== optimisticId),
+          [real],
+        ),
+      ),
+    );
+  }, []);
+
+  /** Remove a message by ID (used to roll back failed optimistic sends). */
+  const removeMessage = useCallback((id: string) => {
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  }, []);
+
   return {
     messages,
     loading,
@@ -191,5 +215,8 @@ export function useMessages(conversation: Conversation | null) {
     currentPage,
     loadMore,
     send,
+    addMessage,
+    replaceMessage,
+    removeMessage,
   };
 }

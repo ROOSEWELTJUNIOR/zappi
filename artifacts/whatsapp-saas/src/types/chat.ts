@@ -29,24 +29,45 @@ export interface EvolutionMessageContent {
     mimetype?: string;
     url?: string;
     base64?: string;
+    fileLength?: string | number;
   };
-  videoMessage?: { caption?: string; mimetype?: string; url?: string };
-  audioMessage?: { mimetype?: string; url?: string; ptt?: boolean };
+  videoMessage?: {
+    caption?: string;
+    mimetype?: string;
+    url?: string;
+    fileLength?: string | number;
+    seconds?: number;
+    gifPlayback?: boolean;
+  };
+  audioMessage?: {
+    mimetype?: string;
+    url?: string;
+    ptt?: boolean;
+    seconds?: number;
+    fileLength?: string | number;
+  };
   documentMessage?: {
     fileName?: string;
     mimetype?: string;
     url?: string;
     title?: string;
+    fileLength?: string | number;
+    pageCount?: number;
   };
-  stickerMessage?: { mimetype?: string; url?: string };
+  stickerMessage?: { mimetype?: string; url?: string; isAnimated?: boolean };
   locationMessage?: {
     degreesLatitude?: number;
     degreesLongitude?: number;
     name?: string;
     address?: string;
+    jpegThumbnail?: string;
   };
   contactMessage?: { displayName?: string; vcard?: string };
   reactionMessage?: { text?: string; key?: EvolutionMessageKey };
+  /** GIF — Evolution API sends as videoMessage with gifPlayback:true */
+  gifMessage?: { url?: string; mimetype?: string; caption?: string };
+  /** Polls — Evolution API v2.x */
+  pollCreationMessage?: { name?: string; options?: Array<{ optionName: string }> };
 }
 
 export interface EvolutionMessageRaw {
@@ -110,9 +131,11 @@ export type MessageType =
   | 'video'
   | 'document'
   | 'sticker'
+  | 'gif'
   | 'location'
   | 'contact'
   | 'reaction'
+  | 'poll'
   | 'unknown';
 
 export type ChatFilter = 'ALL' | 'UNREAD' | 'OPEN' | 'CLOSED' | 'FAVORITE';
@@ -120,12 +143,26 @@ export type ChatFilter = 'ALL' | 'UNREAD' | 'OPEN' | 'CLOSED' | 'FAVORITE';
 // ─── UI models ────────────────────────────────────────────────────────────────
 
 export interface Attachment {
-  type: 'image' | 'audio' | 'video' | 'document' | 'sticker';
+  type: 'image' | 'audio' | 'video' | 'document' | 'sticker' | 'gif';
   url?: string;
   mimetype?: string;
   fileName?: string;
   caption?: string;
   base64?: string;
+  /** File size in bytes (populated when available from Evolution API). */
+  fileSize?: number;
+  /** Duration in seconds (audio / video). */
+  durationSecs?: number;
+  /** Whether audio is a WhatsApp voice note (ptt = push-to-talk). */
+  ptt?: boolean;
+  /** Whether this is an animated GIF (video with gifPlayback = true). */
+  gifPlayback?: boolean;
+  /** Number of pages (PDF documents). */
+  pageCount?: number;
+  /** Latitude for location messages (stored here for convenience). */
+  latitude?: number;
+  /** Longitude for location messages. */
+  longitude?: number;
 }
 
 export interface ChatUser {

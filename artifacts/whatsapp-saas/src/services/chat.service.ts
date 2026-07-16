@@ -63,12 +63,15 @@ function normaliseMessageType(content: EvolutionMessageContent | undefined): Mes
   if (content.conversation !== undefined || content.extendedTextMessage) return 'text';
   if (content.imageMessage) return 'image';
   if (content.audioMessage) return 'audio';
+  // GIF: Evolution sends as videoMessage with gifPlayback=true
+  if (content.videoMessage?.gifPlayback) return 'gif';
   if (content.videoMessage) return 'video';
   if (content.documentMessage) return 'document';
   if (content.stickerMessage) return 'sticker';
   if (content.locationMessage) return 'location';
   if (content.contactMessage) return 'contact';
   if (content.reactionMessage) return 'reaction';
+  if (content.pollCreationMessage) return 'poll';
   return 'unknown';
 }
 
@@ -84,6 +87,7 @@ function extractText(content: EvolutionMessageContent | undefined): string {
     content.locationMessage?.name ??
     content.locationMessage?.address ??
     content.contactMessage?.displayName ??
+    content.pollCreationMessage?.name ??
     ''
   );
 }
@@ -102,12 +106,31 @@ function extractAttachment(
         mimetype: content.imageMessage?.mimetype,
         caption: content.imageMessage?.caption,
         base64: content.imageMessage?.base64,
+        fileSize: content.imageMessage?.fileLength != null
+          ? Number(content.imageMessage.fileLength)
+          : undefined,
       };
     case 'audio':
       return {
         type: 'audio',
         url: content.audioMessage?.url,
         mimetype: content.audioMessage?.mimetype,
+        ptt: content.audioMessage?.ptt ?? false,
+        durationSecs: content.audioMessage?.seconds,
+        fileSize: content.audioMessage?.fileLength != null
+          ? Number(content.audioMessage.fileLength)
+          : undefined,
+      };
+    case 'gif':
+      return {
+        type: 'gif',
+        url: content.videoMessage?.url,
+        mimetype: content.videoMessage?.mimetype,
+        caption: content.videoMessage?.caption,
+        gifPlayback: true,
+        fileSize: content.videoMessage?.fileLength != null
+          ? Number(content.videoMessage.fileLength)
+          : undefined,
       };
     case 'video':
       return {
@@ -115,6 +138,10 @@ function extractAttachment(
         url: content.videoMessage?.url,
         mimetype: content.videoMessage?.mimetype,
         caption: content.videoMessage?.caption,
+        durationSecs: content.videoMessage?.seconds,
+        fileSize: content.videoMessage?.fileLength != null
+          ? Number(content.videoMessage.fileLength)
+          : undefined,
       };
     case 'document':
       return {
@@ -122,12 +149,23 @@ function extractAttachment(
         url: content.documentMessage?.url,
         mimetype: content.documentMessage?.mimetype,
         fileName: content.documentMessage?.fileName ?? content.documentMessage?.title,
+        fileSize: content.documentMessage?.fileLength != null
+          ? Number(content.documentMessage.fileLength)
+          : undefined,
+        pageCount: content.documentMessage?.pageCount,
       };
     case 'sticker':
       return {
         type: 'sticker',
         url: content.stickerMessage?.url,
         mimetype: content.stickerMessage?.mimetype,
+      };
+    // Location: store coordinates in attachment for MediaMessageLocation
+    case 'location':
+      return {
+        type: 'image', // placeholder type; MediaMessageLocation reads the message directly
+        latitude:  content.locationMessage?.degreesLatitude,
+        longitude: content.locationMessage?.degreesLongitude,
       };
     default:
       return undefined;

@@ -191,7 +191,8 @@ export function ChatWindow({
   onBack,
   onInfoToggle,
 }: ChatWindowProps) {
-  const { messages, loading, sending, hasMore, loadMore, send } = useMessages(conversation);
+  const { messages, loading, sending, hasMore, loadMore, send, addMessage, replaceMessage, removeMessage } =
+    useMessages(conversation);
   const bottomRef    = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(0);
 
@@ -202,14 +203,12 @@ export function ChatWindow({
 
   useEffect(() => {
     if (messages.length > prevCountRef.current) {
-      // Scroll smoothly for new messages, instantly on load
       const isInitialLoad = prevCountRef.current === 0;
       scrollToBottom(!isInitialLoad);
     }
     prevCountRef.current = messages.length;
   }, [messages.length, scrollToBottom]);
 
-  // Reset scroll position when conversation changes
   useEffect(() => {
     prevCountRef.current = 0;
   }, [conversation?.id]);
@@ -241,6 +240,10 @@ export function ChatWindow({
         onSend={send}
         sending={sending}
         disabled={false}
+        conversation={conversation}
+        onOptimisticMessage={addMessage}
+        onRealMessage={replaceMessage}
+        onSendError={removeMessage}
       />
     </div>
   );
