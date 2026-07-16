@@ -10,6 +10,10 @@ export interface EvolutionMessageKey {
   remoteJid: string;
   fromMe: boolean;
   id: string;
+  /** Real phone JID when addressingMode is 'lid'. Same as remoteJid for standard messages. */
+  remoteJidAlt?: string;
+  /** 'lid' when WhatsApp uses Linked ID addressing instead of phone-based JID. */
+  addressingMode?: string;
 }
 
 export type EvolutionRawStatus =

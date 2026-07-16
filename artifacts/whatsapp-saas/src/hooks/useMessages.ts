@@ -9,7 +9,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { findMessages, markAsRead, jidToPhone } from '@/services/chat.service';
+import { findMessages, markAsRead } from '@/services/chat.service';
 import { sendText, buildOptimisticMessage } from '@/services/message.service';
 import type { Message, Conversation } from '@/types/chat';
 
@@ -155,7 +155,9 @@ export function useMessages(conversation: Conversation | null) {
       setSending(true);
 
       try {
-        const phone = jidToPhone(conversation.id);
+        // Use contact.phone which is always the real phone number.
+        // For @lid chats, normaliseChat already resolved it from the last message key.
+        const phone = conversation.contact.phone;
         const real = await sendText(conversation.instanceName, phone, trimmed);
         if (!mountedRef.current) return true;
 

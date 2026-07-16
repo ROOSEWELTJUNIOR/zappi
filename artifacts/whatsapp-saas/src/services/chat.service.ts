@@ -255,6 +255,15 @@ function normaliseChat(
   const contact = buildChatUser(jid, displayName, raw.pushName ?? undefined);
   contact.profilePicUrl = raw.profilePicUrl ?? null;
 
+  // When the chat JID is @lid (WhatsApp Linked ID mode), jidToPhone() would return
+  // the internal LID number (e.g. "120074904043619") which is NOT a phone number and
+  // will be rejected by the Evolution API sendText/sendMedia endpoints with 400.
+  // The real phone lives in the last message's key.remoteJid (always @s.whatsapp.net).
+  const lastMsgKeyJid = raw.lastMessage?.key?.remoteJid;
+  if (jid.endsWith('@lid') && lastMsgKeyJid && !lastMsgKeyJid.endsWith('@lid')) {
+    contact.phone = jidToPhone(lastMsgKeyJid);
+  }
+
   return {
     id: jid,
     instanceName,

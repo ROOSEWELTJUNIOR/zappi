@@ -18,7 +18,6 @@ import { toast } from 'sonner';
 import { uploadService } from '@/services/upload.service';
 import { classifyMimetype } from '@/services/storage/interfaces/StorageFile';
 import { sendMedia, buildOptimisticMediaMessage } from '@/services/message.service';
-import { jidToPhone } from '@/services/chat.service';
 import type { UploadItem } from '@/services/storage/interfaces/StorageUpload';
 import type { Conversation, Message } from '@/types/chat';
 
@@ -119,7 +118,9 @@ export function useUpload(options: UseUploadOptions): UseUploadReturn {
     );
     if (!queued.length) return;
 
-    const phone = jidToPhone(conversation.id);
+    // Use contact.phone which is always the real phone number.
+    // For @lid chats, normaliseChat already resolved it from the last message key.
+    const phone = conversation.contact.phone;
 
     for (const item of queued) {
       // 1. Upload file to storage (S3 or base64)
