@@ -64,7 +64,7 @@ function MediaSkeleton() {
 // ─── Message content router ───────────────────────────────────────────────────
 
 function MessageContent({ message }: { message: Message }) {
-  const { type, content, attachment, fromMe } = message;
+  const { type, content, attachment, fromMe, id: messageId, instanceName, remoteJid } = message;
 
   switch (type) {
     case 'image':
@@ -106,6 +106,9 @@ function MessageContent({ message }: { message: Message }) {
           <MediaMessageAudio
             attachment={attachment ?? { type: 'audio' }}
             fromMe={fromMe}
+            messageId={messageId}
+            instanceName={instanceName}
+            remoteJid={remoteJid}
           />
         </Suspense>
       );

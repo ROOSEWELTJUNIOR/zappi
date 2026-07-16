@@ -48,10 +48,18 @@ class StorageService {
 
   /**
    * Upload a file using the active provider.
-   * Returns a StorageResult with a `url` that can be passed to the Evolution API.
+   * If S3 is configured but fails (CORS / wrong credentials), falls back to Base64.
    */
-  upload(file: File, options?: UploadOptions): Promise<StorageResult> {
-    return this._resolve().upload(file, options);
+  async upload(file: File, options?: UploadOptions): Promise<StorageResult> {
+    const provider = this._resolve();
+    if (provider.name !== 'amazons3') {
+      return provider.upload(file, options);
+    }
+    try {
+      return await provider.upload(file, options);
+    } catch {
+      return new Base64Provider().upload(file, options);
+    }
   }
 
   /**

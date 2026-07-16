@@ -39,7 +39,7 @@ function ContactStatus({ isOnline }: { isOnline: boolean }) {
   if (isOnline) {
     return <span className="text-xs text-emerald-500 font-medium">Online</span>;
   }
-  return <span className="text-xs text-muted-foreground">Offline</span>;
+  return null;
 }
 
 // ─── Chat header ──────────────────────────────────────────────────────────────
@@ -121,7 +121,7 @@ interface MessagesAreaProps {
   loading: boolean;
   hasMore: boolean;
   onLoadMore: () => void;
-  bottomRef: React.RefObject<HTMLDivElement>;
+  bottomRef: React.RefObject<HTMLDivElement | null>;
 }
 
 function MessagesArea({ groups, loading, hasMore, onLoadMore, bottomRef }: MessagesAreaProps) {

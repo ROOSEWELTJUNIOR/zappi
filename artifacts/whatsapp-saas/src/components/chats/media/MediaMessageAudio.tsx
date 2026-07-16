@@ -10,6 +10,7 @@
 import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { Play, Pause, Mic } from 'lucide-react';
 import { formatDuration } from '@/services/storage/interfaces/StorageFile';
+import { fetchMediaBase64 } from '@/services/chat.service';
 import type { Attachment } from '@/types/chat';
 
 // ─── Waveform bars ────────────────────────────────────────────────────────────
@@ -63,6 +64,9 @@ function Waveform({
 interface MediaMessageAudioProps {
   attachment: Attachment;
   fromMe: boolean;
+  messageId?: string;
+  instanceName?: string;
+  remoteJid?: string;
 }
 
 const SPEEDS = [1, 1.5, 2] as const;
@@ -70,6 +74,9 @@ const SPEEDS = [1, 1.5, 2] as const;
 export const MediaMessageAudio = memo(function MediaMessageAudio({
   attachment,
   fromMe,
+  messageId,
+  instanceName,
+  remoteJid,
 }: MediaMessageAudioProps) {
   const [playing, setPlaying]     = useState(false);
   const [progress, setProgress]   = useState(0);        // 0–100
@@ -104,7 +111,23 @@ export const MediaMessageAudio = memo(function MediaMessageAudio({
       setElapsed(0);
       audio.currentTime = 0;
     };
-    audio.onerror = () => setError(true);
+    audio.onerror = () => {
+      // Direct URL failed — try fetching via Evolution API (handles CORS / expired URLs)
+      if (messageId && instanceName && remoteJid) {
+        fetchMediaBase64(instanceName, messageId, remoteJid, fromMe)
+          .then((base64) => {
+            if (base64 && audioRef.current) {
+              audioRef.current.src = base64;
+              audioRef.current.load();
+            } else {
+              setError(true);
+            }
+          })
+          .catch(() => setError(true));
+      } else {
+        setError(true);
+      }
+    };
 
     return () => {
       audio.pause();
@@ -144,11 +167,13 @@ export const MediaMessageAudio = memo(function MediaMessageAudio({
   const speed = SPEEDS[speedIdx];
 
   // ─── Render ────────────────────────────────────────────────────────────
-  if (!src) {
+  if (!src || error) {
     return (
       <div className="flex items-center gap-3 px-3 py-2.5 bg-black/10 rounded-xl min-w-[200px]">
         <Mic className="w-4 h-4 opacity-40" />
-        <span className="text-xs text-muted-foreground">Áudio indisponível</span>
+        <span className="text-xs text-muted-foreground">
+          {!src ? 'Áudio indisponível' : 'Não foi possível carregar o áudio'}
+        </span>
       </div>
     );
   }

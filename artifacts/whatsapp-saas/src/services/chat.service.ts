@@ -336,7 +336,9 @@ export async function findMessages(
       data?.records ??
       (Array.isArray(data) ? (data as EvolutionMessageRaw[]) : []);
 
-    return records.map((r) => normaliseMessage(r, instanceName));
+    return records
+      .map((r) => normaliseMessage(r, instanceName))
+      .filter((m) => m.type !== 'unknown');
   } catch {
     // Fallback: GET /message/findMessages
     const { data } = await client.get<EvolutionFindMessagesResponse | EvolutionMessageRaw[]>(
@@ -346,7 +348,9 @@ export async function findMessages(
     const records = Array.isArray(data)
       ? data
       : ((data as EvolutionFindMessagesResponse)?.messages?.records ?? []);
-    return records.map((r) => normaliseMessage(r, instanceName));
+    return records
+      .map((r) => normaliseMessage(r, instanceName))
+      .filter((m) => m.type !== 'unknown');
   }
 }
 
@@ -382,4 +386,30 @@ export async function fetchContactPic(
 /** Build a ChatUser from contact info (used in ContactPanel). */
 export function buildContactUser(conversation: Conversation): ChatUser {
   return { ...conversation.contact };
+}
+
+/**
+ * Fetch media content as a base64 data URI via Evolution API.
+ * Used as fallback when the direct media URL is inaccessible (CORS / expired).
+ */
+export async function fetchMediaBase64(
+  instanceName: string,
+  messageId: string,
+  remoteJid: string,
+  fromMe: boolean,
+): Promise<string | null> {
+  try {
+    const client = getEvolutionClient();
+    const { data } = await client.post<{ base64?: string; mediaType?: string }>(
+      `/message/getBase64FromMediaMessage/${instanceName}`,
+      { message: { key: { id: messageId, fromMe, remoteJid } } },
+    );
+    if (!data?.base64) return null;
+    const b64 = data.base64;
+    if (b64.startsWith('data:')) return b64;
+    const mime = data.mediaType ?? 'audio/ogg';
+    return `data:${mime};base64,${b64}`;
+  } catch {
+    return null;
+  }
 }
