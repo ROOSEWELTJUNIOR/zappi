@@ -1,4 +1,6 @@
 {
   "installCommand": "pnpm install",
-  "buildCommand": "pnpm --filter @workspace/whatsapp-saas build && mkdir -p .vercel/output/static && cp -r dist/. .vercel/output/static/ && printf '{\"version\":3,\"routes\":[{\"handle\":\"filesystem\"},{\"src\":\"/(.*)\",\"dest\":\"/index.html\"}]}' > .vercel/output/config.json"
+  "buildCommand": "pnpm --filter @workspace/whatsapp-saas build",
+  "outputDirectory": "artifacts/whatsapp-saas/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }
