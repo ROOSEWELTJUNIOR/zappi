@@ -87,9 +87,11 @@ export function MessageInput({
   const handleSend = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || sending || disabled) return;
-    setText('');
-    if (textareaRef.current) textareaRef.current.style.height = 'auto';
-    await onSend(trimmed);
+    const ok = await onSend(trimmed);
+    if (ok) {
+      setText('');
+      if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    }
   }, [text, sending, disabled, onSend]);
 
   const handleKeyDown = useCallback(
